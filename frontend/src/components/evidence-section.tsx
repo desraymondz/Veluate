@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ExternalLink } from "lucide-react";
+import { ArrowDown, ArrowRight, ExternalLink } from "lucide-react";
 
 import { formatTimestamp, severityLabel } from "@/lib/format";
 import type { CrossReference } from "@/lib/types";
@@ -88,11 +88,11 @@ function IntroCallout() {
         <span className="border border-border bg-background px-2.5 py-1">
           Exam weakness
         </span>
-        <ArrowDown className="size-3.5 shrink-0" aria-hidden />
+        <ArrowRight className="size-3.5 shrink-0" aria-hidden />
         <span className="border border-border bg-background px-2.5 py-1">
           Teaching clip
         </span>
-        <ArrowDown className="size-3.5 shrink-0" aria-hidden />
+        <ArrowRight className="size-3.5 shrink-0" aria-hidden />
         <span className="border border-border bg-background px-2.5 py-1">
           What to improve
         </span>
