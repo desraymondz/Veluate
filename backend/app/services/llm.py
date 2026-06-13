@@ -48,11 +48,16 @@ def get_llm() -> BaseChatModel:
         if not api_key:
             raise ValueError("MOONSHOT_API_KEY is required when LLM_PROVIDER=kimi")
 
+        # International keys use api.moonshot.ai; China platform uses api.moonshot.cn
+        base_url = os.getenv(
+            "MOONSHOT_BASE_URL", "https://api.moonshot.ai/v1"
+        )
+
         return ChatOpenAI(
             model=model,
             temperature=0,
             api_key=api_key,
-            base_url="https://api.moonshot.cn/v1",
+            base_url=base_url,
         )
 
     from langchain_openai import ChatOpenAI

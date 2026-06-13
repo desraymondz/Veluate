@@ -106,11 +106,13 @@ def _retrieve_moment(
                 hit = hits[0]
                 global_start = _to_global_time(hit["video_id"], hit["start"], offsets)
                 global_end = _to_global_time(hit["video_id"], hit["end"], offsets)
-                clip_url = hit.get("stream_url") or hit.get("player_url")
-                if not clip_url and hit.get("video_id"):
+                clip_url = None
+                if hit.get("video_id"):
                     try:
                         video = collection.get_video(hit["video_id"])
-                        clip_url = service.get_clip_url(video, hit["start"], hit["end"])
+                        clip_url = service.get_clip_url(
+                            video, hit["start"], hit["end"]
+                        )
                     except Exception as exc:
                         logger.warning("Clip URL generation failed: %s", exc)
 

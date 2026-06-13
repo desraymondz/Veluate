@@ -2,10 +2,7 @@
 
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { ConfusionHeatmap } from "@/components/confusion-heatmap";
-import {
-  CrossReferenceList,
-  EvidenceSection,
-} from "@/components/evidence-section";
+import { TeachingEvidenceSection } from "@/components/evidence-section";
 import {
   TranscriptSection,
   transcriptSummary,
@@ -65,9 +62,7 @@ export function ReportDashboard({
   const structureFindings =
     structure?.findings ?? final?.structure_highlights ?? [];
   const examClusters = exam?.weak_clusters ?? final?.exam_gaps ?? [];
-  const evidenceCount =
-    (final?.evidence_clips?.filter((c) => c.clip_url).length ?? 0) ||
-    crossReferences.filter((ref) => ref.clip_url).length;
+  const clipCount = crossReferences.filter((ref) => ref.clip_url).length;
 
   const summaryPreview = summary
     ? summary.length > 160
@@ -128,40 +123,23 @@ export function ReportDashboard({
           )}
 
           <CollapsibleSection
+            label="Evidence"
             order={2}
-            title="Cross-reference"
+            title="Exam → Lecture links"
             summary={
               crossReferences.length
-                ? `${crossReferences.length} link${crossReferences.length === 1 ? "" : "s"} between exam gaps and teaching moments`
-                : "Links exam weak spots to lecture timestamps"
+                ? `${crossReferences.length} link${crossReferences.length === 1 ? "" : "s"} from exam mistakes to teaching moments${clipCount ? ` · ${clipCount} with video` : ""}`
+                : "Connects exam weak spots to where they were taught"
             }
           >
-            <SectionDescription>
-              Where student mistakes connect to what was taught in the lecture.
-            </SectionDescription>
-            <CrossReferenceList crossReferences={crossReferences} />
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            order={3}
-            title="Video evidence"
-            summary={
-              evidenceCount
-                ? `${evidenceCount} clip${evidenceCount === 1 ? "" : "s"} from the lecture`
-                : "Teaching moments with video playback"
-            }
-          >
-            <SectionDescription>
-              Clips tied to exam weak spots and confusion moments.
-            </SectionDescription>
-            <EvidenceSection
+            <TeachingEvidenceSection
               crossReferences={crossReferences}
               evidenceClips={final?.evidence_clips}
             />
           </CollapsibleSection>
 
           <CollapsibleSection
-            order={4}
+            order={3}
             title="Exam gaps"
             summary={
               examClusters.length
@@ -208,7 +186,7 @@ export function ReportDashboard({
           </CollapsibleSection>
 
           <CollapsibleSection
-            order={5}
+            order={4}
             title="Confusion heatmap"
             summary={
               clarity
@@ -227,7 +205,7 @@ export function ReportDashboard({
           </CollapsibleSection>
 
           <CollapsibleSection
-            order={6}
+            order={5}
             title="Structure"
             summary={
               structure
@@ -280,7 +258,7 @@ export function ReportDashboard({
       {transcription && (
         <CollapsibleSection
           label={hasReport ? "Source" : "Transcript"}
-          order={hasReport ? 7 : 1}
+          order={hasReport ? 6 : 1}
           title="Lecture transcript"
           summary={transcriptSummary(transcription)}
         >

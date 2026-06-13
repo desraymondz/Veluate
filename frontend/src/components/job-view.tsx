@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { JobProgress } from "@/components/job-progress";
 import { ReportDashboard } from "@/components/report-dashboard";
-import { getJob } from "@/lib/api";
+import { getJob, retryJobStep } from "@/lib/api";
 import { hasPartialReport, parseAgentResults, parseFailedAgent } from "@/lib/reports";
-import type { Job } from "@/lib/types";
+import type { AgentName, Job } from "@/lib/types";
 
 const POLL_MS = 2000;
 
@@ -17,6 +17,8 @@ type Props = {
 
 export function JobView({ jobId, initialJob }: Props) {
   const [job, setJob] = useState<Job>(initialJob);
+  const [retryingAgent, setRetryingAgent] = useState<AgentName | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -33,6 +35,27 @@ export function JobView({ jobId, initialJob }: Props) {
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
   }, [job.status, refresh]);
+
+  const handleRetry = useCallback(
+    async (agent: AgentName) => {
+      setRetryError(null);
+      setRetryingAgent(agent);
+      try {
+        await retryJobStep(jobId, agent);
+        setJob((prev) => ({
+          ...prev,
+          status: "running",
+          error_message: null,
+        }));
+        await refresh();
+      } catch (err) {
+        setRetryError(err instanceof Error ? err.message : "Retry failed");
+      } finally {
+        setRetryingAgent(null);
+      }
+    },
+    [jobId, refresh]
+  );
 
   const reports = parseAgentResults(job.agent_results);
   const isDone = job.status === "completed";
@@ -60,22 +83,30 @@ export function JobView({ jobId, initialJob }: Props) {
         jobUpdatedAt={job.updated_at}
         errorMessage={job.error_message}
         failedAgent={failedAgent}
+        retryingAgent={retryingAgent}
+        onRetry={handleRetry}
       />
+
+      {retryError && (
+        <p className="border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          {retryError}
+        </p>
+      )}
 
       {hasSections && (
         <section className="space-y-3">
           <div className="space-y-1">
             <p className="veluate-label">Results</p>
             <p className="text-sm text-muted-foreground">
-              Expand a section for full detail — ordered from insights to source
-              material.
+              Expand a section for full detail — start with Exam → Lecture links
+              for the core insight.
             </p>
           </div>
 
           {isFailed && hasPartialReport(reports) && (
             <p className="border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
               Analysis stopped before completion. Showing results from finished
-              agents.
+              agents — use Retry on the failed step to continue.
             </p>
           )}
 

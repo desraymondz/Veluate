@@ -4,6 +4,7 @@ import type {
   ClarityReport,
   ExamAnalysis,
   FinalReport,
+  JobStatus,
   ParsedReports,
   StructureReport,
   TranscriptionResult,
@@ -78,6 +79,41 @@ export function hasPartialReport(reports: ParsedReports): boolean {
       reports.exam ||
       reports.final
   );
+}
+
+export const RETRY_PLAN: Record<AgentName, AgentName[]> = {
+  transcription: [
+    "transcription",
+    "structure",
+    "clarity",
+    "exam",
+    "cross_reference",
+  ],
+  structure: ["structure", "cross_reference"],
+  clarity: ["clarity", "cross_reference"],
+  exam: ["exam", "cross_reference"],
+  cross_reference: ["cross_reference"],
+};
+
+export function retryIncludes(agent: AgentName): AgentName[] {
+  return RETRY_PLAN[agent].filter((step) => step !== agent);
+}
+
+export function canRetryStep(
+  stepId: AgentName,
+  jobStatus: JobStatus,
+  completedAgents: Set<AgentName>,
+  failedAgent: AgentName | null
+): boolean {
+  if (jobStatus === "running" || jobStatus === "pending") return false;
+  if (
+    stepId === "transcription" &&
+    completedAgents.has("transcription") &&
+    failedAgent !== "transcription"
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export const PIPELINE_STEPS: {

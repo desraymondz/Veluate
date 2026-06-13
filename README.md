@@ -112,6 +112,7 @@ uv run python -m app.scripts.run_demo
 | `LLM_MODEL` | No | Override model name for the chosen provider |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Claude API key |
 | `MOONSHOT_API_KEY` | If using Kimi | Moonshot API key |
+| `MOONSHOT_BASE_URL` | No | Kimi API base (default: `https://api.moonshot.ai/v1`; use `.cn` for China keys) |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
 | `VIDEODB_API_KEY` | Yes | VideoDB for transcription + clip retrieval |
 | `VIDEODB_LANGUAGE_CODE` | No | Transcript language (default: `en`) |
