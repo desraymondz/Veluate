@@ -24,9 +24,18 @@ def _resolve_model(provider: str) -> str:
     return os.getenv("LLM_MODEL") or DEFAULT_MODELS[provider]
 
 
+def _max_tokens() -> int:
+    raw = os.getenv("LLM_MAX_TOKENS", "4096").strip()
+    try:
+        return max(1024, min(int(raw), 16384))
+    except ValueError:
+        return 4096
+
+
 @lru_cache
 def get_llm() -> BaseChatModel:
     provider = os.getenv("LLM_PROVIDER", "anthropic").lower()
+    max_tokens = _max_tokens()
 
     if provider not in SUPPORTED_PROVIDERS:
         raise ValueError(
@@ -39,7 +48,7 @@ def get_llm() -> BaseChatModel:
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(model=model, temperature=0)
+        return ChatAnthropic(model=model, temperature=0, max_tokens=max_tokens)
 
     if provider == "kimi":
         from langchain_openai import ChatOpenAI
@@ -56,10 +65,11 @@ def get_llm() -> BaseChatModel:
         return ChatOpenAI(
             model=model,
             temperature=0,
+            max_tokens=max_tokens,
             api_key=api_key,
             base_url=base_url,
         )
 
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(model=model, temperature=0)
+    return ChatOpenAI(model=model, temperature=0, max_tokens=max_tokens)

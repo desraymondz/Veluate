@@ -69,6 +69,10 @@ _RETRY_PLAN: dict[str, list[str]] = {
 
 _active_jobs: set[str] = set()
 
+_MISSING_CROSS_REF_MESSAGE = (
+    "Cross-reference report was not produced. Retry the Cross-reference step."
+)
+
 
 def get_retry_plan(from_agent: str) -> list[str]:
     if from_agent not in _RETRY_PLAN:
@@ -243,6 +247,26 @@ async def _hydrate_state_from_results(job_id: str, state: AgentState) -> None:
         _merge_output_into_state(state, agent_name, output)
 
 
+def _needs_cross_reference_report(state: AgentState) -> bool:
+    return bool(
+        state.get("transcript")
+        and state.get("structure_report")
+        and state.get("clarity_report")
+        and state.get("exam_analysis")
+    )
+
+
+async def _finalize_job_status(job_id: str) -> None:
+    """Mark completed only when the main cross-reference report exists."""
+    state = await _load_initial_state(job_id)
+    await _hydrate_state_from_results(job_id, state)
+    if _needs_cross_reference_report(state) and not state.get("final_report"):
+        await _set_job_status(job_id, JobStatus.FAILED, _MISSING_CROSS_REF_MESSAGE)
+        logger.warning("Job %s missing cross-reference report", job_id)
+    else:
+        await _set_job_status(job_id, JobStatus.COMPLETED, clear_error=True)
+
+
 async def _delete_agent_results(job_id: str, agent_names: list[str]) -> None:
     if not agent_names:
         return
@@ -375,7 +399,7 @@ async def run_job(job_id: str) -> None:
                     else:
                         await _publish_agent_completed(job_id, agent_name)
 
-            await _set_job_status(job_id, JobStatus.COMPLETED, clear_error=True)
+            await _finalize_job_status(job_id)
             logger.info("Pipeline completed for job %s", job_id)
         except Exception as exc:
             logger.exception("Pipeline failed for job %s", job_id)
@@ -412,7 +436,7 @@ async def retry_job(job_id: str, from_agent: str) -> list[str]:
             _validate_prerequisites(state, plan)
 
             await _execute_agents(job_id, state, plan)
-            await _set_job_status(job_id, JobStatus.COMPLETED, clear_error=True)
+            await _finalize_job_status(job_id)
             logger.info("Retry completed for job %s", job_id)
         except Exception as exc:
             logger.exception("Retry failed for job %s", job_id)

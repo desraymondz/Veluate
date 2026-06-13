@@ -110,6 +110,7 @@ uv run python -m app.scripts.run_demo
 |----------|----------|-------------|
 | `LLM_PROVIDER` | No | `anthropic`, `kimi`, or `openai` (default: `anthropic`) |
 | `LLM_MODEL` | No | Override model name for the chosen provider |
+| `LLM_MAX_TOKENS` | No | Max completion tokens per LLM call (default: `4096`) |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Claude API key |
 | `MOONSHOT_API_KEY` | If using Kimi | Moonshot API key |
 | `MOONSHOT_BASE_URL` | No | Kimi API base (default: `https://api.moonshot.ai/v1`; use `.cn` for China keys) |
