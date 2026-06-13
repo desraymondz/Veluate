@@ -72,16 +72,28 @@ Open http://localhost:3000
 
 ## Demo script (5-minute hackathon demo)
 
-Preload `sample_data/` then run the full pipeline from the CLI:
+Run all three terminals (after `uv sync`, `npm install`, and copying `.env`):
+
+```bash
+# Terminal 1 — backend
+cd backend && uv run uvicorn app.main:app --reload
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+
+# Terminal 3 — demo job (uses sample_data/ + YouTube lecture)
+cd backend
+export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=YOUR_ID"
+uv run python -m app.scripts.run_demo
+```
+
+Open the dashboard URL printed by Terminal 3 (or http://localhost:3000).
+
+First-time setup for Terminal 3:
 
 ```bash
 cd backend
 cp .env.example .env   # set ANTHROPIC_API_KEY, VIDEODB_API_KEY, etc.
-
-# Add a YouTube lecture URL (psychology intro works well)
-export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
-
-uv run python -m app.scripts.run_demo
 ```
 
 The script will:
@@ -173,11 +185,10 @@ sample_data/           Demo syllabus, exams, video
 
 ## Hackathon demo checklist
 
-1. Start backend + frontend (`uv run uvicorn…`, `npm run dev`)
+1. Run the three terminals above (backend, frontend, demo script)
 2. Set `DEMO_YOUTUBE_URL` to a short psychology lecture on YouTube
-3. Run `uv run python -m app.scripts.run_demo` (or upload via UI)
-4. Open the printed `/jobs/{id}` URL
-5. Walk through: progress → heatmap peaks → exam gaps → cross-reference with clip evidence
+3. Open the printed `/jobs/{id}` URL
+4. Walk through: progress → heatmap peaks → exam gaps → cross-reference with clip evidence
 
 ## Optional deploy
 
