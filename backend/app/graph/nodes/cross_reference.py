@@ -16,6 +16,7 @@ def cross_reference_node(state: AgentState) -> dict:
             "cross_references": [
                 {
                     "exam_topic": cluster.get("topic", "Unknown"),
+                    "syllabus_section": cluster.get("syllabus_section"),
                     "teaching_timestamp": heatmap[0]["start_sec"] if heatmap else None,
                     "clip_url": None,
                     "evidence": "[stub] Teaching moment linked to exam failure cluster",
