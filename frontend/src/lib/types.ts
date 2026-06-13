@@ -129,6 +129,7 @@ export type FinalReport = {
   exam_summary?: string;
   cross_references: CrossReference[];
   recommendations?: string[];
+  summary_infographic?: boolean;
   evidence_clips?: {
     exam_topic: string;
     start_sec: number | null;

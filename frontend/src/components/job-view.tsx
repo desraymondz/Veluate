@@ -114,6 +114,7 @@ export function JobView({ jobId, initialJob }: Props) {
             <ReportDashboard
               reports={reports}
               teacherName={job.teacher_name}
+              jobId={jobId}
               transcription={reports.transcription}
               jobFiles={job.files}
             />

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.graph.state import AgentState
 from app.services.chunking import chunk_transcript, score_chunks_by_query
+from app.services.infographic import generate_summary_infographic
 from app.services.llm import get_llm
 from app.services.videodb import get_videodb_service
 
@@ -335,5 +336,16 @@ def run_cross_reference_analysis(state: AgentState) -> dict:
             if ref.get("clip_url")
         ],
     }
+
+    if generate_summary_infographic(
+        state["job_id"],
+        teacher_name=state["teacher_name"],
+        summary=llm_result.summary,
+        recommendations=llm_result.recommendations,
+        structure_score=structure.get("score"),
+        clarity_score=clarity.get("score"),
+        exam_gaps=weak_clusters,
+    ):
+        final_report["summary_infographic"] = True
 
     return {"final_report": final_report}

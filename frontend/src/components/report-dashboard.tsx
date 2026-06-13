@@ -8,11 +8,13 @@ import {
   transcriptSummary,
 } from "@/components/transcript-section";
 import { formatTimestamp, severityLabel } from "@/lib/format";
+import { summaryInfographicUrl } from "@/lib/api";
 import type { ParsedReports, TranscriptionResult } from "@/lib/types";
 
 type Props = {
   reports: ParsedReports;
   teacherName: string;
+  jobId?: string;
   transcription?: TranscriptionResult | null;
   jobFiles?: {
     file_type: string;
@@ -40,6 +42,7 @@ function SectionDescription({ children }: { children: React.ReactNode }) {
 export function ReportDashboard({
   reports,
   teacherName,
+  jobId,
   transcription,
   jobFiles,
 }: Props) {
@@ -70,7 +73,11 @@ export function ReportDashboard({
       : summary
     : recommendations.length > 0
       ? `${recommendations.length} priority action${recommendations.length === 1 ? "" : "s"}`
-      : undefined;
+      : final?.summary_infographic
+        ? "Visual summary available"
+        : undefined;
+
+  const showInfographic = Boolean(final?.summary_infographic && jobId);
 
   const hasReport = Boolean(final || structure || clarity || exam);
 
@@ -78,7 +85,7 @@ export function ReportDashboard({
     <div className="space-y-2">
       {hasReport && (
         <>
-          {(summary || recommendations.length > 0) && (
+          {(summary || recommendations.length > 0 || showInfographic) && (
             <CollapsibleSection
               label="Report"
               order={1}
@@ -87,6 +94,18 @@ export function ReportDashboard({
             >
               <SectionDescription>{teacherName}</SectionDescription>
               <div className="space-y-5">
+                {showInfographic && (
+                  <figure className="overflow-hidden border border-border bg-muted/30">
+                    <img
+                      src={summaryInfographicUrl(jobId!)}
+                      alt={`Executive summary infographic for ${teacherName}`}
+                      className="w-full object-contain"
+                    />
+                    <figcaption className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+                      Visual summary — scores, priorities, and exam gaps at a glance
+                    </figcaption>
+                  </figure>
+                )}
                 {summary && (
                   <p className="text-[15px] leading-7 text-foreground">
                     {summary}
