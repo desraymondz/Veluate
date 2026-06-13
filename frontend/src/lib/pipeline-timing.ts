@@ -1,7 +1,8 @@
 import { PIPELINE_STEPS } from "@/lib/reports";
 import type { AgentName, AgentResult, JobStatus } from "@/lib/types";
 
-const PARALLEL_AGENTS: AgentName[] = ["structure", "clarity", "exam"];
+const CROSS_REF_PREREQS: AgentName[] = ["structure", "clarity", "exam"];
+const PARALLEL_AGENTS: AgentName[] = [...CROSS_REF_PREREQS, "fact_check"];
 
 export type StepState = "done" | "active" | "pending" | "failed";
 
@@ -50,8 +51,8 @@ export function stepState(
   }
 
   if (stepId === "cross_reference") {
-    const parallelDone = PARALLEL_AGENTS.every((id) => completed.has(id));
-    if (parallelDone && !completed.has("cross_reference")) return "active";
+    const crossRefReady = CROSS_REF_PREREQS.every((id) => completed.has(id));
+    if (crossRefReady && !completed.has("cross_reference")) return "active";
   }
 
   return "pending";
@@ -83,12 +84,12 @@ export function computeStepTimings(
   const finished = completionTimes(agentResults);
   const pipelineStart = parseTime(job.created_at);
   const transcriptionEnd = finished.get("transcription");
-  const parallelEnds = PARALLEL_AGENTS.map((id) => finished.get(id)).filter(
+  const crossRefPrereqEnds = CROSS_REF_PREREQS.map((id) => finished.get(id)).filter(
     (t): t is number => t != null
   );
   const crossRefStart =
-    parallelEnds.length === PARALLEL_AGENTS.length
-      ? Math.max(...parallelEnds)
+    crossRefPrereqEnds.length === CROSS_REF_PREREQS.length
+      ? Math.max(...crossRefPrereqEnds)
       : undefined;
   const failTime =
     job.status === "failed" ? parseTime(job.updated_at) : undefined;

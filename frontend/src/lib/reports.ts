@@ -3,6 +3,7 @@ import type {
   AgentResult,
   ClarityReport,
   ExamAnalysis,
+  FactCheckReport,
   FinalReport,
   JobStatus,
   ParsedReports,
@@ -27,6 +28,7 @@ export function parseAgentResults(
   let structure: StructureReport | null = null;
   let clarity: ClarityReport | null = null;
   let exam: ExamAnalysis | null = null;
+  let factCheck: FactCheckReport | null = null;
   let final: FinalReport | null = null;
 
   for (const result of agentResults) {
@@ -55,12 +57,15 @@ export function parseAgentResults(
     if (result.agent_name === "exam" && data.exam_analysis) {
       exam = data.exam_analysis as ExamAnalysis;
     }
+    if (result.agent_name === "fact_check" && data.fact_check_report) {
+      factCheck = data.fact_check_report as FactCheckReport;
+    }
     if (result.agent_name === "cross_reference" && data.final_report) {
       final = data.final_report as FinalReport;
     }
   }
 
-  return { transcription, structure, clarity, exam, final, completedAgents };
+  return { transcription, structure, clarity, exam, factCheck, final, completedAgents };
 }
 
 /** Parse agent name from backend error messages like "structure: ..." */
@@ -77,6 +82,7 @@ export function hasPartialReport(reports: ParsedReports): boolean {
     reports.structure ||
       reports.clarity ||
       reports.exam ||
+      reports.factCheck ||
       reports.final
   );
 }
@@ -87,11 +93,13 @@ export const RETRY_PLAN: Record<AgentName, AgentName[]> = {
     "structure",
     "clarity",
     "exam",
+    "fact_check",
     "cross_reference",
   ],
   structure: ["structure", "cross_reference"],
   clarity: ["clarity", "cross_reference"],
   exam: ["exam", "cross_reference"],
+  fact_check: ["fact_check"],
   cross_reference: ["cross_reference"],
 };
 
@@ -140,6 +148,11 @@ export const PIPELINE_STEPS: {
     id: "exam",
     label: "Exam gaps",
     description: "Clustering weak concepts",
+  },
+  {
+    id: "fact_check",
+    label: "Fact check",
+    description: "Verifying claims against web sources",
   },
   {
     id: "cross_reference",

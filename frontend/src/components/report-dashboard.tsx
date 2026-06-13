@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  FactCheckSection,
+  factCheckSummary,
+} from "@/components/fact-check-section";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { AskTheLectureSection } from "@/components/ask-lecture-section";
 import { ConfusionHeatmap } from "@/components/confusion-heatmap";
@@ -47,13 +51,14 @@ export function ReportDashboard({
   transcription,
   jobFiles,
 }: Props) {
-  const { structure, clarity, exam, final } = reports;
+  const { structure, clarity, exam, factCheck, final } = reports;
 
   if (
     !final &&
     !structure &&
     !clarity &&
     !exam &&
+    !factCheck &&
     !transcription
   ) {
     return null;
@@ -80,7 +85,7 @@ export function ReportDashboard({
 
   const showInfographic = Boolean(final?.summary_infographic && jobId);
 
-  const hasReport = Boolean(final || structure || clarity || exam);
+  const hasReport = Boolean(final || structure || clarity || exam || factCheck);
 
   return (
     <div className="space-y-2">
@@ -272,6 +277,16 @@ export function ReportDashboard({
               )}
             </div>
           </CollapsibleSection>
+
+          {factCheck && (
+            <CollapsibleSection
+              order={6}
+              title="Factual accuracy"
+              summary={factCheckSummary(factCheck)}
+            >
+              <FactCheckSection report={factCheck} />
+            </CollapsibleSection>
+          )}
         </>
       )}
 
@@ -279,7 +294,7 @@ export function ReportDashboard({
         <>
           <CollapsibleSection
             label="Explore"
-            order={hasReport ? 6 : 2}
+            order={hasReport ? 7 : 2}
             title="Ask the lecture"
             summary="Search whether a topic was taught"
           >
@@ -291,7 +306,7 @@ export function ReportDashboard({
 
           <CollapsibleSection
             label={hasReport ? "Source" : "Transcript"}
-            order={hasReport ? 7 : 1}
+            order={hasReport ? 8 : 1}
             title="Lecture transcript"
             summary={transcriptSummary(transcription)}
           >

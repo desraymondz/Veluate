@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.agents.clarity import run_clarity_analysis
 from app.agents.cross_reference import run_cross_reference_analysis
 from app.agents.exam import run_exam_analysis
+from app.agents.fact_check import run_fact_check
 from app.agents.structure import run_structure_analysis
 from app.agents.transcription import run_transcription
 from app.db.models import AgentResult, FileType, Job, JobStatus
@@ -29,16 +30,24 @@ logger = logging.getLogger(__name__)
 
 # Nodes whose updates are persisted as AgentResult rows.
 _TRACKED_AGENTS = frozenset(
-    {"transcription", "structure", "clarity", "exam", "cross_reference"}
+    {
+        "transcription",
+        "structure",
+        "clarity",
+        "exam",
+        "fact_check",
+        "cross_reference",
+    }
 )
 
-_PARALLEL_AGENTS = frozenset({"structure", "clarity", "exam"})
+_PARALLEL_AGENTS = frozenset({"structure", "clarity", "exam", "fact_check"})
 
 _AGENT_RUNNERS: dict[str, Callable[[AgentState], dict]] = {
     "transcription": run_transcription,
     "structure": run_structure_analysis,
     "clarity": run_clarity_analysis,
     "exam": run_exam_analysis,
+    "fact_check": run_fact_check,
     "cross_reference": run_cross_reference_analysis,
 }
 
@@ -48,11 +57,13 @@ _RETRY_PLAN: dict[str, list[str]] = {
         "structure",
         "clarity",
         "exam",
+        "fact_check",
         "cross_reference",
     ],
     "structure": ["structure", "cross_reference"],
     "clarity": ["clarity", "cross_reference"],
     "exam": ["exam", "cross_reference"],
+    "fact_check": ["fact_check"],
     "cross_reference": ["cross_reference"],
 }
 
@@ -88,6 +99,8 @@ def _merge_output_into_state(
         state["clarity_report"] = output.get("clarity_report")
     elif agent_name == "exam":
         state["exam_analysis"] = output.get("exam_analysis")
+    elif agent_name == "fact_check":
+        state["fact_check_report"] = output.get("fact_check_report")
     elif agent_name == "cross_reference":
         state["final_report"] = output.get("final_report")
 
@@ -103,13 +116,16 @@ def _clear_agent_from_state(state: AgentState, agent_name: str) -> None:
         state["clarity_report"] = None
     elif agent_name == "exam":
         state["exam_analysis"] = None
+    elif agent_name == "fact_check":
+        state["fact_check_report"] = None
     elif agent_name == "cross_reference":
         state["final_report"] = None
 
 
 def _validate_prerequisites(state: AgentState, agents: list[str]) -> None:
     needs_transcript = any(
-        a in agents for a in ("structure", "clarity", "cross_reference")
+        a in agents
+        for a in ("structure", "clarity", "fact_check", "cross_reference")
     )
     if needs_transcript and not state.get("transcript"):
         raise ValueError(
@@ -197,6 +213,7 @@ async def _load_initial_state(job_id: str) -> AgentState:
             structure_report=None,
             clarity_report=None,
             exam_analysis=None,
+            fact_check_report=None,
             final_report=None,
             errors=[],
         )

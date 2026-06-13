@@ -18,5 +18,6 @@ class AgentState(TypedDict):
     structure_report: dict | None
     clarity_report: dict | None
     exam_analysis: dict | None
+    fact_check_report: dict | None
     final_report: dict | None
     errors: Annotated[list[str], operator.add]

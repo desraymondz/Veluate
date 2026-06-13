@@ -80,7 +80,7 @@ At http://localhost:3000:
 
 1. **Upload** — fill in teacher name, audience, syllabus PDF, a YouTube URL (or video file), and exam PDFs from `sample_data/`
 2. **Run evaluation** — you’re redirected to `/jobs/{id}` with live progress
-3. **Report** — when done, walk through tabs: Cross-reference → Heatmap → Structure → Exam gaps → Evidence clips
+3. **Report** — when done, walk through tabs: Cross-reference → Heatmap → Structure → Exam gaps → Factual accuracy → Evidence clips
 
 **Suggested demo files** (from `sample_data/`):
 
@@ -114,6 +114,9 @@ uv run python -m app.scripts.run_demo
 | `MOONSHOT_API_KEY` | If using Kimi | Moonshot API key |
 | `MOONSHOT_BASE_URL` | No | Kimi API base (default: `https://api.moonshot.ai/v1`; use `.cn` for China keys) |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
+| `BRIGHTDATA_API_TOKEN` | No | Bright Data API key (enables fact-check agent) |
+| `BRIGHTDATA_SERP_ZONE` | If using Bright Data | SERP API zone name (e.g. `serp_api1`) |
+| `FACT_CHECK_MAX_CLAIMS` | No | Max claims to verify per job (default: `6`) |
 | `VIDEODB_API_KEY` | Yes | VideoDB for transcription + clip retrieval |
 | `VIDEODB_LANGUAGE_CODE` | No | Transcript language (default: `en`) |
 | `DATABASE_URL` | No | SQLite default: `sqlite+aiosqlite:///./veluate.db` |
@@ -125,6 +128,34 @@ uv run python -m app.scripts.run_demo
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_API_URL` | Backend URL (default: `http://localhost:8000`) |
+
+## Bright Data fact-check (optional)
+
+The **fact_check** agent runs in parallel with structure/clarity/exam. It extracts checkable claims from the lecture transcript and verifies them against web sources via the [Bright Data SERP API](https://docs.brightdata.com/scraping-automation/serp-api/introduction).
+
+1. Sign in at [brightdata.com](https://brightdata.com/cp/start) and create a **SERP API** zone
+2. Copy your API key and zone name into `backend/.env`:
+   ```env
+   BRIGHTDATA_API_TOKEN=your_api_key
+   BRIGHTDATA_SERP_ZONE=your_zone_name
+   ```
+3. Restart the backend and run a job — progress shows **Fact check** as an independent step; results appear under **Factual accuracy** in the report
+
+Without these vars, the pipeline still completes; fact-check is skipped with a note in the report.
+
+Smoke-test your credentials:
+
+```bash
+curl -X POST https://api.brightdata.com/request \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "zone": "YOUR_ZONE",
+    "url": "https://www.google.com/search?q=operant+conditioning+definition&hl=en&gl=us",
+    "format": "raw",
+    "data_format": "parsed_light"
+  }'
+```
 
 ## Switching LLM providers
 
@@ -158,7 +189,7 @@ backend/app/
   api/routes/          Job + health endpoints
   graph/               LangGraph pipeline
   agents/              Agent prompts + logic
-  services/            LLM, VideoDB, pipeline, demo
+  services/            LLM, VideoDB, Bright Data, pipeline, demo
   scripts/run_demo.py  CLI demo runner
   db/                  SQLite models
 frontend/src/          Next.js dashboard

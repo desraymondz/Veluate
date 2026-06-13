@@ -4,6 +4,7 @@ from langgraph.graph import END, START, StateGraph
 from app.graph.nodes.clarity import clarity_node
 from app.graph.nodes.cross_reference import cross_reference_node
 from app.graph.nodes.exam import exam_node
+from app.graph.nodes.fact_check import fact_check_node
 from app.graph.nodes.structure import structure_node
 from app.graph.nodes.transcription import transcription_node
 from app.graph.state import AgentState
@@ -16,9 +17,10 @@ def build_graph():
     """Build the Veluate evaluation graph.
 
     Flow:
-      transcription → structure ─┐
-                     → clarity  ─┼→ cross_reference → END
-                     → exam     ─┘
+      transcription → structure ──┐
+                     → clarity   ─┼→ cross_reference → END
+                     → exam      ─┘
+                     → fact_check ───────────────────→ END
     """
     graph = StateGraph(AgentState)
 
@@ -26,16 +28,19 @@ def build_graph():
     graph.add_node("structure", structure_node)
     graph.add_node("clarity", clarity_node)
     graph.add_node("exam", exam_node)
+    graph.add_node("fact_check", fact_check_node)
     graph.add_node("cross_reference", cross_reference_node)
 
     graph.add_edge(START, "transcription")
     graph.add_edge("transcription", "structure")
     graph.add_edge("transcription", "clarity")
     graph.add_edge("transcription", "exam")
+    graph.add_edge("transcription", "fact_check")
     graph.add_edge("structure", "cross_reference")
     graph.add_edge("clarity", "cross_reference")
     graph.add_edge("exam", "cross_reference")
     graph.add_edge("cross_reference", END)
+    graph.add_edge("fact_check", END)
 
     return graph.compile(checkpointer=_checkpointer)
 

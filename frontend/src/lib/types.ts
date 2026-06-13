@@ -5,6 +5,7 @@ export type AgentName =
   | "structure"
   | "clarity"
   | "exam"
+  | "fact_check"
   | "cross_reference";
 
 export type JobFile = {
@@ -77,6 +78,34 @@ export type ExamAnalysis = {
   exam_count: number;
   summary: string;
   weak_clusters: WeakCluster[];
+  note?: string | null;
+};
+
+export type FactCheckVerdict =
+  | "supported"
+  | "oversimplified"
+  | "incorrect"
+  | "unverified";
+
+export type FactCheckSource = {
+  title: string;
+  url: string;
+  snippet?: string;
+};
+
+export type FactCheckClaim = {
+  quote: string;
+  start_sec: number;
+  end_sec: number;
+  topic: string;
+  verdict: FactCheckVerdict;
+  explanation: string;
+  sources: FactCheckSource[];
+};
+
+export type FactCheckReport = {
+  summary: string;
+  claims: FactCheckClaim[];
   note?: string | null;
 };
 
@@ -155,6 +184,7 @@ export type ParsedReports = {
   structure: StructureReport | null;
   clarity: ClarityReport | null;
   exam: ExamAnalysis | null;
+  factCheck: FactCheckReport | null;
   final: FinalReport | null;
   completedAgents: Set<AgentName>;
 };
