@@ -64,15 +64,9 @@ npm run dev
 
 Open http://localhost:3000
 
-### 3. Run via UI
+### 3. Demo on the website
 
-1. **Upload** — teacher name, audience, syllabus PDF, video file(s) and/or YouTube URL(s), optional exam PDFs
-2. **Job page** (`/jobs/{id}`) — live pipeline progress (polls every 2s)
-3. **Report** — tabs for Cross-reference, Heatmap, Structure, Exam gaps, Evidence clips
-
-## Demo script (5-minute hackathon demo)
-
-Run all three terminals (after `uv sync`, `npm install`, and copying `.env`):
+Use two terminals only (backend + frontend). Then demo entirely in the browser:
 
 ```bash
 # Terminal 1 — backend
@@ -80,46 +74,33 @@ cd backend && uv run uvicorn app.main:app --reload
 
 # Terminal 2 — frontend
 cd frontend && npm run dev
-
-# Terminal 3 — demo job (uses sample_data/ + YouTube lecture)
-cd backend
-export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=YOUR_ID"
-uv run python -m app.scripts.run_demo
 ```
 
-Open the dashboard URL printed by Terminal 3 (or http://localhost:3000).
+At http://localhost:3000:
 
-First-time setup for Terminal 3:
+1. **Upload** — fill in teacher name, audience, syllabus PDF, a YouTube URL (or video file), and exam PDFs from `sample_data/`
+2. **Run evaluation** — you’re redirected to `/jobs/{id}` with live progress
+3. **Report** — when done, walk through tabs: Cross-reference → Heatmap → Structure → Exam gaps → Evidence clips
 
-```bash
-cd backend
-cp .env.example .env   # set ANTHROPIC_API_KEY, VIDEODB_API_KEY, etc.
-```
+**Suggested demo files** (from `sample_data/`):
 
-The script will:
-
-- Use `sample_data/syllabus/syllabus.pdf` and all 15 exam papers in `sample_data/exams/`
-- Create a job, run the pipeline, print the dashboard URL
-
-Options:
-
-```bash
-uv run python -m app.scripts.run_demo \
-  --youtube-url "https://www.youtube.com/watch?v=..." \
-  --max-exams 5 \
-  --teacher-name "Dr Lee" \
-  --frontend-url "http://localhost:3000"
-```
-
-### Sample data
-
-| Path | Status |
-|------|--------|
-| `sample_data/exams/` | 15 student exam PDFs (Foundations of Psychology) |
-| `sample_data/syllabus/syllabus.pdf` | Course syllabus with weekly topics |
-| `sample_data/video/` | Add `lecture.mp4` or use `--youtube-url` |
+| Field | File |
+|-------|------|
+| Syllabus | `sample_data/syllabus/syllabus.pdf` |
+| Exams | `sample_data/exams/Student_*.pdf` (select several or all 15) |
+| YouTube URL | A short psychology lecture (required if you have no local video) |
 
 See `sample_data/README.md` for details.
+
+### Optional: CLI demo script
+
+For headless testing without the UI (not needed for a website demo):
+
+```bash
+cd backend
+export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=..."
+uv run python -m app.scripts.run_demo
+```
 
 ## Environment variables
 
@@ -136,7 +117,7 @@ See `sample_data/README.md` for details.
 | `VIDEODB_LANGUAGE_CODE` | No | Transcript language (default: `en`) |
 | `DATABASE_URL` | No | SQLite default: `sqlite+aiosqlite:///./veluate.db` |
 | `CORS_ORIGINS` | No | Comma-separated (default: `http://localhost:3000`) |
-| `DEMO_YOUTUBE_URL` | For demo script | Default lecture URL for `run_demo` |
+| `DEMO_YOUTUBE_URL` | No | CLI demo script only (`run_demo`) |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -183,26 +164,15 @@ frontend/src/          Next.js dashboard
 sample_data/           Demo syllabus, exams, video
 ```
 
-## Hackathon demo checklist
+## Hackathon demo checklist (website)
 
-1. Run the three terminals above (backend, frontend, demo script)
-2. Set `DEMO_YOUTUBE_URL` to a short psychology lecture on YouTube
-3. Open the printed `/jobs/{id}` URL
-4. Walk through: progress → heatmap peaks → exam gaps → cross-reference with clip evidence
+1. Start backend + frontend (two terminals)
+2. Open http://localhost:3000
+3. Upload syllabus, YouTube URL, and exam PDFs from `sample_data/`
+4. Show live progress on the job page
+5. Walk through report tabs: heatmap → exam gaps → cross-reference with clip evidence
 
 ## Optional deploy
 
 - **Frontend:** Vercel — set `NEXT_PUBLIC_API_URL` to your backend URL
 - **Backend:** Railway — set env vars from `.env.example`, expose port 8000, update `CORS_ORIGINS`
-
-## Build phases
-
-- [x] Phase 0 — Skeleton
-- [x] Phase 1 — Job API + SQLite
-- [x] Phase 2 — LangGraph shell
-- [x] Phase 3 — Transcription agent + VideoDB
-- [x] Phase 4 — Structure + Clarity agents
-- [x] Phase 5 — Exam agent
-- [x] Phase 6 — Cross-reference agent
-- [x] Phase 7 — Frontend dashboard
-- [x] Phase 8 — Polish + demo

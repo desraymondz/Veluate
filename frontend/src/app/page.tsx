@@ -1,13 +1,6 @@
-import { SiteHeader } from "@/components/site-header";
+import { Logo } from "@/components/brand/logo";
+import { PageMain, SiteHeader } from "@/components/site-header";
 import { UploadForm } from "@/components/upload-form";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { getHealth } from "@/lib/api";
 
 export default async function HomePage() {
@@ -23,44 +16,42 @@ export default async function HomePage() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
-        <div className="mb-8 space-y-2 text-center">
-          <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
-            AI-powered teacher evaluation
-          </p>
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Analyse teaching. Link to exam gaps.
-          </h1>
-          <p className="text-muted-foreground">
-            Upload a lecture, syllabus, and student exams to get evidence-based
-            feedback with timestamped video clips.
-          </p>
-        </div>
+      <PageMain narrow>
+        <section className="mb-12 space-y-8">
+          {/* <Logo variant="lockup" href={null} priority className="mx-auto sm:mx-0" /> */}
+          <div className="space-y-4 text-center sm:text-left">
+            <p className="veluate-label">AI teacher evaluation</p>
+            <h1 className="text-balance font-display text-4xl leading-[1.15] tracking-wide sm:text-[42px]">
+              Where teaching meets understanding.
+            </h1>
+            <p className="max-w-xl text-base leading-relaxed text-[#3d3d3d]">
+              Upload a lecture, syllabus, and student exams. Veluate maps
+              teaching moments to exam gaps with timestamped evidence.
+            </p>
+          </div>
+        </section>
 
-        <div className="mb-6">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="text-sm">Backend</CardTitle>
-              <CardDescription>API connection status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {health ? (
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="default">{health.status}</Badge>
-                  <Badge variant="outline">{health.llm_provider}</Badge>
-                  <Badge variant="outline">
-                    {health.llm_model || "default model"}
-                  </Badge>
-                </div>
-              ) : (
-                <p className="text-sm text-destructive">{healthError}</p>
-              )}
-            </CardContent>
-          </Card>
+        <div className="mb-8 flex flex-wrap items-center gap-3 border border-border bg-card px-4 py-3 text-sm">
+          <span className="veluate-label mb-0">System</span>
+          {health ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                <span className="size-1.5 bg-foreground" />
+                Connected
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span className="font-data text-muted-foreground">
+                {health.llm_provider}
+                {health.llm_model ? ` / ${health.llm_model}` : ""}
+              </span>
+            </>
+          ) : (
+            <span className="text-foreground">{healthError}</span>
+          )}
         </div>
 
         <UploadForm />
-      </main>
+      </PageMain>
     </>
   );
 }

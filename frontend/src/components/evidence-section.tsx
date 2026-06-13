@@ -2,14 +2,6 @@
 
 import { ExternalLink } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { formatTimestamp, severityLabel } from "@/lib/format";
 import type { CrossReference } from "@/lib/types";
 
@@ -25,10 +17,10 @@ type Props = {
 
 function ClipPlayer({ url, title }: { url: string; title: string }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <video
         controls
-        className="w-full rounded-lg border bg-black"
+        className="w-full border border-border bg-foreground"
         src={url}
         title={title}
       >
@@ -38,9 +30,9 @@ function ClipPlayer({ url, title }: { url: string; title: string }) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
-        Open clip in new tab
+        Open clip
         <ExternalLink className="size-3" />
       </a>
     </div>
@@ -53,7 +45,7 @@ export function EvidenceSection({ crossReferences, evidenceClips }: Props) {
   if (!withClips.length && !evidenceClips?.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        No video clips available. Timestamps are still listed in cross-references.
+        No video clips available. Timestamps are listed under Cross-reference.
       </p>
     );
   }
@@ -70,22 +62,25 @@ export function EvidenceSection({ crossReferences, evidenceClips }: Props) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {clips.map((clip, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <CardTitle className="text-base">{clip.exam_topic}</CardTitle>
-            <CardDescription>
+        <div
+          key={i}
+          className="overflow-hidden border border-border bg-background"
+        >
+          <div className="border-b border-border px-4 py-4">
+            <p className="font-medium text-foreground">{clip.exam_topic}</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
               {formatTimestamp(clip.start_sec)}
               {clip.end_sec != null && ` – ${formatTimestamp(clip.end_sec)}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+          </div>
+          <div className="p-4">
             {clip.clip_url ? (
               <ClipPlayer url={clip.clip_url} title={clip.exam_topic} />
             ) : (
               <p className="text-sm text-muted-foreground">Clip unavailable</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -99,7 +94,7 @@ export function CrossReferenceList({
   if (!crossReferences.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        No cross-references generated. Upload exam papers to link teaching gaps to
+        No cross-references yet. Upload exam papers to link teaching gaps to
         student mistakes.
       </p>
     );
@@ -108,57 +103,67 @@ export function CrossReferenceList({
   return (
     <div className="space-y-4">
       {crossReferences.map((ref, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <div className="flex flex-wrap items-start justify-between gap-2">
+        <article
+          key={i}
+          className="overflow-hidden border border-border bg-background"
+        >
+          <div className="border-b border-border px-5 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle className="text-base">{ref.exam_topic}</CardTitle>
+                <h4 className="font-medium text-foreground">{ref.exam_topic}</h4>
                 {ref.syllabus_section && (
-                  <CardDescription>{ref.syllabus_section}</CardDescription>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {ref.syllabus_section}
+                  </p>
                 )}
               </div>
               {ref.exam_frequency != null && (
-                <Badge variant="secondary">
+                <span className="font-mono text-xs text-muted-foreground">
                   {Math.round(ref.exam_frequency * 100)}% of papers
-                </Badge>
+                </span>
               )}
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          </div>
+
+          <div className="space-y-4 px-5 py-4 text-sm leading-relaxed">
             {ref.teaching_timestamp != null && (
               <p className="font-mono text-xs text-muted-foreground">
-                Lecture moment: {formatTimestamp(ref.teaching_timestamp)}
+                {formatTimestamp(ref.teaching_timestamp)}
                 {ref.teaching_end_sec != null &&
                   ` – ${formatTimestamp(ref.teaching_end_sec)}`}
               </p>
             )}
             {ref.transcript_excerpt && (
-              <blockquote className="border-l-2 pl-3 italic text-muted-foreground">
-                &ldquo;{ref.transcript_excerpt.slice(0, 280)}
-                {ref.transcript_excerpt.length > 280 ? "…" : ""}&rdquo;
+              <blockquote className="border-l-2 border-foreground/20 pl-4 text-muted-foreground">
+                {ref.transcript_excerpt.slice(0, 280)}
+                {ref.transcript_excerpt.length > 280 ? "…" : ""}
               </blockquote>
             )}
             {ref.evidence && (
               <div>
-                <p className="mb-1 font-medium">Evidence</p>
-                <p>{ref.evidence}</p>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Evidence
+                </p>
+                <p className="text-foreground">{ref.evidence}</p>
               </div>
             )}
             {ref.recommendation && (
-              <div className="rounded-lg bg-muted/50 px-3 py-2">
-                <p className="mb-1 font-medium">Recommendation</p>
-                <p>{ref.recommendation}</p>
+              <div className="bg-muted px-4 py-3">
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Recommendation
+                </p>
+                <p className="text-foreground">{ref.recommendation}</p>
               </div>
             )}
             {ref.clarity_link && (
               <p className="text-xs text-muted-foreground">
-                Clarity flag ({Math.round(ref.clarity_link.severity * 100)}%):{" "}
+                Clarity · {Math.round(ref.clarity_link.severity * 100)}% —{" "}
                 {ref.clarity_link.reason}
               </p>
             )}
             {ref.structure_link && (
               <p className="text-xs text-muted-foreground">
-                Structure ({severityLabel(ref.structure_link.severity)}):{" "}
+                Structure · {severityLabel(ref.structure_link.severity)} —{" "}
                 {ref.structure_link.detail}
               </p>
             )}
@@ -167,14 +172,14 @@ export function CrossReferenceList({
                 href={ref.clip_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline"
               >
                 Watch clip
-                <ExternalLink className="size-3" />
+                <ExternalLink className="size-3.5" />
               </a>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </article>
       ))}
     </div>
   );
