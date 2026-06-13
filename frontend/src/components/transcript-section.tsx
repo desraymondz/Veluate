@@ -34,6 +34,23 @@ function transcriptDuration(segments: TranscriptionResult["transcript"]): number
   return segments[segments.length - 1]?.end ?? null;
 }
 
+export function transcriptSummary(transcription: TranscriptionResult): string {
+  const { transcript, videodb_videos: sources } = transcription;
+  if (!transcript.length) {
+    return "Transcription finished — no spoken segments detected.";
+  }
+
+  const duration = transcriptDuration(transcript);
+  const parts = [`${transcript.length} segments`];
+  if (sources.length > 0) {
+    parts.push(`${sources.length} source${sources.length === 1 ? "" : "s"}`);
+  }
+  if (duration != null) {
+    parts.push(`${formatDuration(duration)} total`);
+  }
+  return parts.join(" · ");
+}
+
 export function TranscriptSection({ transcription, jobFiles }: Props) {
   const { transcript, videodb_videos: sources } = transcription;
   const [query, setQuery] = useState("");
@@ -57,111 +74,98 @@ export function TranscriptSection({ transcription, jobFiles }: Props) {
 
   if (!transcript.length) {
     return (
-      <div className="veluate-panel overflow-hidden">
-        <div className="border-b border-border px-6 py-5">
-          <p className="veluate-label">Transcript</p>
-          <h2 className="font-display text-2xl tracking-wide">Lecture transcript</h2>
-        </div>
-        <div className="px-6 py-5">
-          <p className="text-sm text-muted-foreground">
-            Transcription finished but no spoken segments were detected.
-          </p>
-        </div>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Transcription finished but no spoken segments were detected.
+      </p>
     );
   }
 
   return (
-    <div className="veluate-panel overflow-hidden">
-      <div className="border-b border-border px-6 py-5">
-        <p className="veluate-label">Transcript</p>
-        <h2 className="font-display text-2xl tracking-wide">Lecture transcript</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Timestamped speech from your lecture sources — available as soon as
-          indexing completes.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Timestamped speech from your lecture sources — available as soon as
+        indexing completes.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <span className="inline-flex items-center rounded-full border border-border px-3 py-1 font-data text-xs text-foreground">
+          {transcript.length} segments
+        </span>
+        {sources.length > 0 && (
           <span className="inline-flex items-center rounded-full border border-border px-3 py-1 font-data text-xs text-foreground">
-            {transcript.length} segments
+            {sources.length} source{sources.length === 1 ? "" : "s"}
           </span>
-          {sources.length > 0 && (
-            <span className="inline-flex items-center rounded-full border border-border px-3 py-1 font-data text-xs text-foreground">
-              {sources.length} source{sources.length === 1 ? "" : "s"}
-            </span>
-          )}
-          {duration != null && (
-            <span className="inline-flex items-center rounded-full border border-border px-3 py-1 font-data text-xs text-foreground">
-              {formatDuration(duration)} total
-            </span>
-          )}
-        </div>
+        )}
+        {duration != null && (
+          <span className="inline-flex items-center rounded-full border border-border px-3 py-1 font-data text-xs text-foreground">
+            {formatDuration(duration)} total
+          </span>
+        )}
       </div>
 
-      <div className="space-y-4 px-6 py-5">
-        {sources.length > 0 && (
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {sources.map((source) => (
-              <li key={source.id}>
-                <span className="font-medium text-foreground">
-                  {sourceLabel(source, sources, jobFiles)}
+      {sources.length > 0 && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {sources.map((source) => (
+            <li key={source.id}>
+              <span className="font-medium text-foreground">
+                {sourceLabel(source, sources, jobFiles)}
+              </span>
+              {" · "}
+              {source.segment_count} segments
+              {source.length != null && ` · ${formatDuration(source.length)}`}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search transcript…"
+        className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+      />
+
+      <div className="max-h-[28rem] overflow-y-auto border border-border">
+        {filtered.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-muted-foreground">
+            No segments match &ldquo;{query.trim()}&rdquo;.
+          </p>
+        ) : (
+          <ol className="divide-y divide-border">
+            {filtered.map((seg, i) => (
+              <li
+                key={`${seg.start}-${seg.end}-${i}`}
+                className="flex gap-4 px-4 py-3 text-sm leading-relaxed hover:bg-muted/40"
+              >
+                <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                  {formatTimestamp(seg.start)}
+                  {seg.end > seg.start + 0.5 && (
+                    <>
+                      <span className="text-muted-foreground/50"> – </span>
+                      {formatTimestamp(seg.end)}
+                    </>
+                  )}
                 </span>
-                {" · "}
-                {source.segment_count} segments
-                {source.length != null && ` · ${formatDuration(source.length)}`}
+                <div className="min-w-0 flex-1">
+                  {multipleSources && seg.video_id && videoLabels.has(seg.video_id) && (
+                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {videoLabels.get(seg.video_id)}
+                    </p>
+                  )}
+                  <p className="text-foreground">{seg.text}</p>
+                </div>
               </li>
             ))}
-          </ul>
-        )}
-
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search transcript…"
-          className="w-full border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-        />
-
-        <div className="max-h-[28rem] overflow-y-auto border border-border">
-          {filtered.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">
-              No segments match &ldquo;{query.trim()}&rdquo;.
-            </p>
-          ) : (
-            <ol className="divide-y divide-border">
-              {filtered.map((seg, i) => (
-                <li
-                  key={`${seg.start}-${seg.end}-${i}`}
-                  className="flex gap-4 px-4 py-3 text-sm leading-relaxed hover:bg-muted/40"
-                >
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                    {formatTimestamp(seg.start)}
-                    {seg.end > seg.start + 0.5 && (
-                      <>
-                        <span className="text-muted-foreground/50"> – </span>
-                        {formatTimestamp(seg.end)}
-                      </>
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {multipleSources && seg.video_id && videoLabels.has(seg.video_id) && (
-                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        {videoLabels.get(seg.video_id)}
-                      </p>
-                    )}
-                    <p className="text-foreground">{seg.text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        {query.trim() && filtered.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            Showing {filtered.length} of {transcript.length} segments
-          </p>
+          </ol>
         )}
       </div>
+
+      {query.trim() && filtered.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Showing {filtered.length} of {transcript.length} segments
+        </p>
+      )}
     </div>
   );
 }

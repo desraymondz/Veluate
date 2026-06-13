@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import { JobProgress } from "@/components/job-progress";
 import { ReportDashboard } from "@/components/report-dashboard";
-import { TranscriptSection } from "@/components/transcript-section";
 import { getJob } from "@/lib/api";
 import { hasPartialReport, parseAgentResults, parseFailedAgent } from "@/lib/reports";
 import type { Job } from "@/lib/types";
@@ -40,6 +39,7 @@ export function JobView({ jobId, initialJob }: Props) {
   const isFailed = job.status === "failed";
   const showReport = isDone || (isFailed && hasPartialReport(reports));
   const failedAgent = parseFailedAgent(job.error_message);
+  const hasSections = reports.transcription || showReport;
 
   return (
     <div className="space-y-8">
@@ -62,22 +62,38 @@ export function JobView({ jobId, initialJob }: Props) {
         failedAgent={failedAgent}
       />
 
-      {reports.transcription && (
-        <TranscriptSection
-          transcription={reports.transcription}
-          jobFiles={job.files}
-        />
+      {hasSections && (
+        <section className="space-y-3">
+          <div className="space-y-1">
+            <p className="veluate-label">Results</p>
+            <p className="text-sm text-muted-foreground">
+              Expand a section for full detail — ordered from insights to source
+              material.
+            </p>
+          </div>
+
+          {isFailed && hasPartialReport(reports) && (
+            <p className="border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+              Analysis stopped before completion. Showing results from finished
+              agents.
+            </p>
+          )}
+
+          {(showReport || reports.transcription) && (
+            <ReportDashboard
+              reports={reports}
+              teacherName={job.teacher_name}
+              transcription={reports.transcription}
+              jobFiles={job.files}
+            />
+          )}
+        </section>
       )}
 
-      {isFailed && hasPartialReport(reports) && (
+      {!hasSections && isFailed && (
         <p className="border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-          Analysis stopped before completion. Showing results from finished
-          agents.
+          {job.error_message ?? "Evaluation failed before producing results."}
         </p>
-      )}
-
-      {showReport && (
-        <ReportDashboard reports={reports} teacherName={job.teacher_name} />
       )}
     </div>
   );
