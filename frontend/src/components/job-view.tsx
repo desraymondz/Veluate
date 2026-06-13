@@ -38,6 +38,9 @@ export function JobView({ jobId, initialJob }: Props) {
 
   const handleRetry = useCallback(
     async (agent: AgentName) => {
+      if (job.status === "running" || job.status === "pending" || retryingAgent) {
+        return;
+      }
       setRetryError(null);
       setRetryingAgent(agent);
       try {
@@ -54,7 +57,7 @@ export function JobView({ jobId, initialJob }: Props) {
         setRetryingAgent(null);
       }
     },
-    [jobId, refresh]
+    [jobId, refresh, job.status, retryingAgent]
   );
 
   const reports = parseAgentResults(job.agent_results);

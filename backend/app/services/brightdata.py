@@ -3,15 +3,19 @@
 import json
 import logging
 import os
+import ssl
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 
+import certifi
+
 logger = logging.getLogger(__name__)
 
 _REQUEST_URL = "https://api.brightdata.com/request"
 _TIMEOUT_SEC = 30
+_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 @dataclass(frozen=True)
@@ -65,9 +69,22 @@ def search_google(query: str, *, max_results: int = 3) -> list[SourceSnippet]:
             },
             method="POST",
         )
-        with urlopen(request, timeout=_TIMEOUT_SEC) as response:
+        with urlopen(request, timeout=_TIMEOUT_SEC, context=_SSL_CONTEXT) as response:
             body = response.read().decode("utf-8")
-    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+    except HTTPError as exc:
+        error_body = ""
+        try:
+            error_body = exc.read().decode("utf-8", errors="replace")[:300]
+        except OSError:
+            pass
+        logger.warning(
+            "Bright Data SERP HTTP %s for %r: %s",
+            exc.code,
+            query,
+            error_body or exc.reason,
+        )
+        return []
+    except (URLError, TimeoutError, OSError) as exc:
         logger.warning("Bright Data SERP request failed for %r: %s", query, exc)
         return []
 
@@ -77,7 +94,7 @@ def search_google(query: str, *, max_results: int = 3) -> list[SourceSnippet]:
         logger.warning("Bright Data SERP returned non-JSON for %r", query)
         return []
 
-    organic = data.get("organic") or []
+    organic = data.get("organic") or data.get("results") or []
     results: list[SourceSnippet] = []
     for item in organic[:max_results]:
         if not isinstance(item, dict):
@@ -85,7 +102,21 @@ def search_google(query: str, *, max_results: int = 3) -> list[SourceSnippet]:
         url = (item.get("link") or item.get("url") or "").strip()
         title = (item.get("title") or "").strip()
         snippet = (item.get("description") or item.get("snippet") or "").strip()
-        if url and (title or snippet):
-            results.append(SourceSnippet(title=title or url, url=url, snippet=snippet))
+        if not url:
+            continue
+        results.append(
+            SourceSnippet(
+                title=title or url,
+                url=url,
+                snippet=snippet,
+            )
+        )
+
+    if not results and organic:
+        logger.warning(
+            "Bright Data SERP returned %d organic rows but none were usable for %r",
+            len(organic),
+            query,
+        )
 
     return results

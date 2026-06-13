@@ -90,10 +90,6 @@ class ClaimWithSources(BaseModel):
     sources: list[SourceRef]
 
 
-class BatchVerdictOutput(BaseModel):
-    claims: list[VerifiedClaim]
-
-
 def _max_claims() -> int:
     raw = os.getenv("FACT_CHECK_MAX_CLAIMS", str(_MAX_CLAIMS_DEFAULT)).strip()
     try:
@@ -155,24 +151,47 @@ def _extract_claims(state: AgentState, max_claims: int) -> list[ExtractedClaim]:
     return result.claims[:max_claims]
 
 
-def _verdict_on_claims(claims_with_sources: list[ClaimWithSources]) -> list[VerifiedClaim]:
-    if not claims_with_sources:
-        return []
-
-    llm = get_llm().with_structured_output(BatchVerdictOutput)
-    result: BatchVerdictOutput = llm.invoke(
+def _verdict_on_claim(claim: ClaimWithSources) -> VerifiedClaim:
+    llm = get_llm().with_structured_output(VerifiedClaim)
+    result: VerifiedClaim = llm.invoke(
         [
             {"role": "system", "content": _VERDICT_SYSTEM},
             {
                 "role": "user",
                 "content": (
-                    "Verify each claim using the search snippets below.\n\n"
-                    + _format_sources_block(claims_with_sources)
+                    "Verify this single claim using the search snippets below.\n\n"
+                    + _format_sources_block([claim])
                 ),
             },
         ]
     )
-    return result.claims
+    return VerifiedClaim(
+        quote=claim.quote,
+        start_sec=claim.start_sec,
+        end_sec=claim.end_sec,
+        topic=claim.topic,
+        verdict=result.verdict,
+        explanation=result.explanation,
+        sources=claim.sources,
+    )
+
+
+def _verdict_on_claims(claims_with_sources: list[ClaimWithSources]) -> list[VerifiedClaim]:
+    verified: list[VerifiedClaim] = []
+    for claim in claims_with_sources:
+        try:
+            verified.append(_verdict_on_claim(claim))
+        except Exception as exc:
+            logger.warning("Fact-check verdict failed for claim %r: %s", claim.topic, exc)
+            extracted = ExtractedClaim(
+                quote=claim.quote,
+                start_sec=claim.start_sec,
+                end_sec=claim.end_sec,
+                topic=claim.topic,
+                search_query=claim.search_query,
+            )
+            verified.append(_unverified_claim(extracted, claim.sources))
+    return verified
 
 
 def _unverified_claim(claim: ExtractedClaim, sources: list[SourceRef]) -> VerifiedClaim:
