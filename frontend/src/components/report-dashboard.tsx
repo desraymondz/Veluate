@@ -1,42 +1,28 @@
 "use client";
 
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { ConfusionHeatmap } from "@/components/confusion-heatmap";
 import {
   CrossReferenceList,
   EvidenceSection,
 } from "@/components/evidence-section";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  TranscriptSection,
+  transcriptSummary,
+} from "@/components/transcript-section";
 import { formatTimestamp, severityLabel } from "@/lib/format";
-import type { ParsedReports } from "@/lib/types";
+import type { ParsedReports, TranscriptionResult } from "@/lib/types";
 
 type Props = {
   reports: ParsedReports;
   teacherName: string;
+  transcription?: TranscriptionResult | null;
+  jobFiles?: {
+    file_type: string;
+    original_filename: string | null;
+    source_url: string | null;
+  }[];
 };
-
-function Panel({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="veluate-panel overflow-hidden">
-      <div className="border-b border-border px-6 py-5">
-        <h3 className="font-display text-[22px] tracking-wide">{title}</h3>
-        {description && (
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {description}
-          </p>
-        )}
-      </div>
-      <div className="px-6 py-5">{children}</div>
-    </div>
-  );
-}
 
 function StatPill({ label }: { label: string }) {
   return (
@@ -46,199 +32,264 @@ function StatPill({ label }: { label: string }) {
   );
 }
 
-export function ReportDashboard({ reports, teacherName }: Props) {
+function SectionDescription({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+export function ReportDashboard({
+  reports,
+  teacherName,
+  transcription,
+  jobFiles,
+}: Props) {
   const { structure, clarity, exam, final } = reports;
 
-  if (!final && !structure && !clarity && !exam) {
+  if (
+    !final &&
+    !structure &&
+    !clarity &&
+    !exam &&
+    !transcription
+  ) {
     return null;
   }
 
   const summary = final?.summary;
   const recommendations = final?.recommendations ?? [];
+  const crossReferences = final?.cross_references ?? [];
+  const heatmap = clarity?.heatmap ?? final?.top_confusion_moments ?? [];
+  const structureFindings =
+    structure?.findings ?? final?.structure_highlights ?? [];
+  const examClusters = exam?.weak_clusters ?? final?.exam_gaps ?? [];
+  const evidenceCount =
+    (final?.evidence_clips?.filter((c) => c.clip_url).length ?? 0) ||
+    crossReferences.filter((ref) => ref.clip_url).length;
+
+  const summaryPreview = summary
+    ? summary.length > 160
+      ? `${summary.slice(0, 160)}…`
+      : summary
+    : recommendations.length > 0
+      ? `${recommendations.length} priority action${recommendations.length === 1 ? "" : "s"}`
+      : undefined;
+
+  const hasReport = Boolean(final || structure || clarity || exam);
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-2">
-        <p className="veluate-label">Report</p>
-        <h2 className="font-display text-2xl tracking-wide">Feedback</h2>
-      </section>
-
-      {(summary || recommendations.length > 0) && (
-        <Panel title="Summary" description={teacherName}>
-          <div className="space-y-5">
-            {summary && (
-              <p className="text-[15px] leading-7 text-foreground">{summary}</p>
-            )}
-            {recommendations.length > 0 && (
-              <div>
-                <p className="mb-3 text-sm font-medium text-foreground">
-                  Priority actions
-                </p>
-                <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-                  {recommendations.map((rec, i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="mt-2 size-1 shrink-0 rounded-full bg-foreground" />
-                      <span>{rec}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {final?.structure_score != null && (
-                <StatPill label={`Structure ${final.structure_score}/10`} />
-              )}
-              {final?.clarity_score != null && (
-                <StatPill label={`Clarity ${final.clarity_score}/10`} />
-              )}
-              {exam?.exam_count != null && (
-                <StatPill label={`${exam.exam_count} exam papers`} />
-              )}
-            </div>
-          </div>
-        </Panel>
-      )}
-
-      <Tabs defaultValue="cross-reference" className="gap-6">
-        <TabsList
-          variant="line"
-          className="h-auto w-full justify-start gap-6 border-b border-border bg-transparent p-0"
-        >
-          {[
-            ["cross-reference", "Cross-reference"],
-            ["heatmap", "Heatmap"],
-            ["structure", "Structure"],
-            ["exam", "Exam gaps"],
-            ["evidence", "Evidence"],
-          ].map(([value, label]) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="rounded-none px-0 pb-3 text-sm font-medium text-muted-foreground data-active:text-foreground"
+    <div className="space-y-2">
+      {hasReport && (
+        <>
+          {(summary || recommendations.length > 0) && (
+            <CollapsibleSection
+              label="Report"
+              order={1}
+              title="Summary"
+              summary={summaryPreview}
             >
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="cross-reference" className="mt-0">
-          <CrossReferenceList
-            crossReferences={final?.cross_references ?? []}
-          />
-        </TabsContent>
-
-        <TabsContent value="heatmap" className="mt-0">
-          <Panel
-            title="Confusion heatmap"
-            description={
-              clarity
-                ? `Clarity ${clarity.score}/10 — ${clarity.summary}`
-                : undefined
-            }
-          >
-            <ConfusionHeatmap
-              heatmap={clarity?.heatmap ?? final?.top_confusion_moments ?? []}
-            />
-          </Panel>
-        </TabsContent>
-
-        <TabsContent value="structure" className="mt-0">
-          <Panel
-            title="Structure"
-            description={
-              structure
-                ? `Score ${structure.score}/10 — ${structure.summary}`
-                : undefined
-            }
-          >
-            <div className="divide-y divide-border border border-border">
-              {(structure?.findings ?? final?.structure_highlights ?? []).map(
-                (finding, i) => (
-                  <div key={i} className="px-4 py-4 text-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {finding.type}
-                      </span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs font-medium text-foreground">
-                        {severityLabel(finding.severity)}
-                      </span>
-                      {finding.timestamp_sec != null && (
-                        <>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {formatTimestamp(finding.timestamp_sec)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <p className="mt-2 leading-relaxed text-foreground">
-                      {finding.detail}
-                    </p>
-                  </div>
-                )
-              )}
-              {!structure?.findings?.length &&
-                !final?.structure_highlights?.length && (
-                  <p className="px-4 py-4 text-sm text-muted-foreground">
-                    No structure findings available.
+              <SectionDescription>{teacherName}</SectionDescription>
+              <div className="space-y-5">
+                {summary && (
+                  <p className="text-[15px] leading-7 text-foreground">
+                    {summary}
                   </p>
                 )}
-            </div>
-          </Panel>
-        </TabsContent>
-
-        <TabsContent value="exam" className="mt-0">
-          <Panel
-            title="Exam gaps"
-            description={exam?.summary ?? final?.exam_summary}
-          >
-            <div className="divide-y divide-border border border-border">
-              {(exam?.weak_clusters ?? final?.exam_gaps ?? []).map(
-                (cluster, i) => (
-                  <div key={i} className="px-4 py-4 text-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="font-medium text-foreground">
-                        {cluster.topic}
-                      </p>
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                        {Math.round(cluster.frequency * 100)}%
-                      </span>
-                    </div>
-                    {cluster.syllabus_section && (
-                      <p className="mt-1 text-muted-foreground">
-                        {cluster.syllabus_section}
-                      </p>
-                    )}
-                    <ul className="mt-3 space-y-1.5 text-muted-foreground">
-                      {cluster.example_mistakes.map((m, j) => (
-                        <li key={j} className="flex gap-2">
-                          <span className="text-foreground/40">—</span>
-                          {m}
+                {recommendations.length > 0 && (
+                  <div>
+                    <p className="mb-3 text-sm font-medium text-foreground">
+                      Priority actions
+                    </p>
+                    <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+                      {recommendations.map((rec, i) => (
+                        <li key={i} className="flex gap-3">
+                          <span className="mt-2 size-1 shrink-0 rounded-full bg-foreground" />
+                          <span>{rec}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                )
-              )}
-              {!exam?.weak_clusters?.length && !final?.exam_gaps?.length && (
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {final?.structure_score != null && (
+                    <StatPill label={`Structure ${final.structure_score}/10`} />
+                  )}
+                  {final?.clarity_score != null && (
+                    <StatPill label={`Clarity ${final.clarity_score}/10`} />
+                  )}
+                  {exam?.exam_count != null && (
+                    <StatPill label={`${exam.exam_count} exam papers`} />
+                  )}
+                </div>
+              </div>
+            </CollapsibleSection>
+          )}
+
+          <CollapsibleSection
+            order={2}
+            title="Cross-reference"
+            summary={
+              crossReferences.length
+                ? `${crossReferences.length} link${crossReferences.length === 1 ? "" : "s"} between exam gaps and teaching moments`
+                : "Links exam weak spots to lecture timestamps"
+            }
+          >
+            <SectionDescription>
+              Where student mistakes connect to what was taught in the lecture.
+            </SectionDescription>
+            <CrossReferenceList crossReferences={crossReferences} />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            order={3}
+            title="Video evidence"
+            summary={
+              evidenceCount
+                ? `${evidenceCount} clip${evidenceCount === 1 ? "" : "s"} from the lecture`
+                : "Teaching moments with video playback"
+            }
+          >
+            <SectionDescription>
+              Clips tied to exam weak spots and confusion moments.
+            </SectionDescription>
+            <EvidenceSection
+              crossReferences={crossReferences}
+              evidenceClips={final?.evidence_clips}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            order={4}
+            title="Exam gaps"
+            summary={
+              examClusters.length
+                ? `${examClusters.length} weak cluster${examClusters.length === 1 ? "" : "s"}${exam?.exam_count != null ? ` from ${exam.exam_count} papers` : ""}`
+                : exam?.note ?? "Weak concepts from student exam papers"
+            }
+          >
+            <SectionDescription>
+              {exam?.summary ??
+                final?.exam_summary ??
+                "Topics where students struggled most."}
+            </SectionDescription>
+            <div className="divide-y divide-border border border-border">
+              {examClusters.map((cluster, i) => (
+                <div key={i} className="px-4 py-4 text-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="font-medium text-foreground">{cluster.topic}</p>
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                      {Math.round(cluster.frequency * 100)}%
+                    </span>
+                  </div>
+                  {cluster.syllabus_section && (
+                    <p className="mt-1 text-muted-foreground">
+                      {cluster.syllabus_section}
+                    </p>
+                  )}
+                  <ul className="mt-3 space-y-1.5 text-muted-foreground">
+                    {cluster.example_mistakes.map((m, j) => (
+                      <li key={j} className="flex gap-2">
+                        <span className="text-foreground/40">—</span>
+                        {m}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {!examClusters.length && (
                 <p className="px-4 py-4 text-sm text-muted-foreground">
-                  {exam?.note ?? "No exam papers uploaded or no weak clusters found."}
+                  {exam?.note ??
+                    "No exam papers uploaded or no weak clusters found."}
                 </p>
               )}
             </div>
-          </Panel>
-        </TabsContent>
+          </CollapsibleSection>
 
-        <TabsContent value="evidence" className="mt-0">
-          <Panel title="Video evidence">
-            <EvidenceSection
-              crossReferences={final?.cross_references ?? []}
-              evidenceClips={final?.evidence_clips}
-            />
-          </Panel>
-        </TabsContent>
-      </Tabs>
+          <CollapsibleSection
+            order={5}
+            title="Confusion heatmap"
+            summary={
+              clarity
+                ? `Clarity ${clarity.score}/10 · ${heatmap.length} confusion point${heatmap.length === 1 ? "" : "s"}`
+                : heatmap.length
+                  ? `${heatmap.length} confusion point${heatmap.length === 1 ? "" : "s"}`
+                  : "Moments where students may get lost"
+            }
+          >
+            {clarity && (
+              <SectionDescription>
+                {clarity.score}/10 — {clarity.summary}
+              </SectionDescription>
+            )}
+            <ConfusionHeatmap heatmap={heatmap} />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            order={6}
+            title="Structure"
+            summary={
+              structure
+                ? `Score ${structure.score}/10 · ${structureFindings.length} finding${structureFindings.length === 1 ? "" : "s"}`
+                : structureFindings.length
+                  ? `${structureFindings.length} finding${structureFindings.length === 1 ? "" : "s"}`
+                  : "Lesson flow and concept sequencing"
+            }
+          >
+            {structure && (
+              <SectionDescription>
+                Score {structure.score}/10 — {structure.summary}
+              </SectionDescription>
+            )}
+            <div className="divide-y divide-border border border-border">
+              {structureFindings.map((finding, i) => (
+                <div key={i} className="px-4 py-4 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {finding.type}
+                    </span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs font-medium text-foreground">
+                      {severityLabel(finding.severity)}
+                    </span>
+                    {finding.timestamp_sec != null && (
+                      <>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatTimestamp(finding.timestamp_sec)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <p className="mt-2 leading-relaxed text-foreground">
+                    {finding.detail}
+                  </p>
+                </div>
+              ))}
+              {!structureFindings.length && (
+                <p className="px-4 py-4 text-sm text-muted-foreground">
+                  No structure findings available.
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+        </>
+      )}
+
+      {transcription && (
+        <CollapsibleSection
+          label={hasReport ? "Source" : "Transcript"}
+          order={hasReport ? 7 : 1}
+          title="Lecture transcript"
+          summary={transcriptSummary(transcription)}
+        >
+          <TranscriptSection
+            transcription={transcription}
+            jobFiles={jobFiles}
+          />
+        </CollapsibleSection>
+      )}
     </div>
   );
 }
