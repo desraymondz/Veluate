@@ -1,6 +1,4 @@
 from app.agents.clarity import run_clarity_analysis
-from app.graph.state import AgentState
+from app.graph.nodes._wrap import agent_node
 
-
-def clarity_node(state: AgentState) -> dict:
-    return run_clarity_analysis(state)
+clarity_node = agent_node("clarity", run_clarity_analysis)

@@ -48,6 +48,24 @@ export function parseAgentResults(
   return { structure, clarity, exam, final, completedAgents };
 }
 
+/** Parse agent name from backend error messages like "structure: ..." */
+export function parseFailedAgent(errorMessage: string | null | undefined): AgentName | null {
+  if (!errorMessage) return null;
+  for (const step of PIPELINE_STEPS) {
+    if (errorMessage.startsWith(`${step.id}:`)) return step.id;
+  }
+  return null;
+}
+
+export function hasPartialReport(reports: ParsedReports): boolean {
+  return Boolean(
+    reports.structure ||
+      reports.clarity ||
+      reports.exam ||
+      reports.final
+  );
+}
+
 export const PIPELINE_STEPS: {
   id: AgentName;
   label: string;

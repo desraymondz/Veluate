@@ -1,6 +1,4 @@
 from app.agents.structure import run_structure_analysis
-from app.graph.state import AgentState
+from app.graph.nodes._wrap import agent_node
 
-
-def structure_node(state: AgentState) -> dict:
-    return run_structure_analysis(state)
+structure_node = agent_node("structure", run_structure_analysis)

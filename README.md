@@ -2,82 +2,191 @@
 
 AI-powered teacher evaluation system. Analyses lecture recordings with a multi-agent LangGraph pipeline and cross-references teaching gaps with student exam performance.
 
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph input [Input]
+    Video[Lecture video / YouTube]
+    Syllabus[Syllabus PDF]
+    Exams[Student exam PDFs]
+  end
+
+  subgraph pipeline [LangGraph pipeline]
+    T[Transcription]
+    S[Structure]
+    C[Clarity]
+    E[Exam]
+    X[Cross-reference]
+  end
+
+  subgraph output [Output]
+    Report[Evidence-based feedback report]
+    Clips[Timestamped video clips]
+  end
+
+  Video --> T
+  T --> S
+  T --> C
+  T --> E
+  S --> X
+  C --> X
+  E --> X
+  Syllabus --> S
+  Syllabus --> C
+  Syllabus --> E
+  Exams --> E
+  X --> Report
+  X --> Clips
+```
+
 ## Quick start
 
-### Backend
+### 1. Backend
 
 ```bash
 cd backend
 uv sync
-cp .env.example .env        # add your API keys
+cp .env.example .env        # add API keys (see below)
 uv run uvicorn app.main:app --reload
 ```
 
 Health check: http://localhost:8000/health
 
-Create a job (YouTube URLs and/or video files + syllabus PDF):
-
-```bash
-curl -X POST http://localhost:8000/jobs \
-  -F "teacher_name=Dr Smith" \
-  -F "audience=CS undergrads" \
-  -F "syllabus=@/path/to/syllabus.pdf" \
-  -F "youtube_urls=https://www.youtube.com/watch?v=..." \
-  -F "youtube_urls=https://youtu.be/..."
-```
-
-Then `GET /jobs/{id}` for status/results, `GET /jobs/{id}/events` for SSE progress.
-
-### Frontend
+### 2. Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # optional; defaults to localhost:8000
+cp .env.local.example .env.local   # optional
 npm run dev
 ```
 
 Open http://localhost:3000
 
+### 3. Run via UI
+
 1. **Upload** — teacher name, audience, syllabus PDF, video file(s) and/or YouTube URL(s), optional exam PDFs
 2. **Job page** (`/jobs/{id}`) — live pipeline progress (polls every 2s)
-3. **Report** — tabs for Cross-reference, Heatmap, Structure, Exam gaps, and Evidence clips
+3. **Report** — tabs for Cross-reference, Heatmap, Structure, Exam gaps, Evidence clips
+
+## Demo script (5-minute hackathon demo)
+
+Preload `sample_data/` then run the full pipeline from the CLI:
+
+```bash
+cd backend
+cp .env.example .env   # set ANTHROPIC_API_KEY, VIDEODB_API_KEY, etc.
+
+# Add a YouTube lecture URL (psychology intro works well)
+export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
+
+uv run python -m app.scripts.run_demo
+```
+
+The script will:
+
+- Use `sample_data/syllabus/syllabus.pdf` and all 15 exam papers in `sample_data/exams/`
+- Create a job, run the pipeline, print the dashboard URL
+
+Options:
+
+```bash
+uv run python -m app.scripts.run_demo \
+  --youtube-url "https://www.youtube.com/watch?v=..." \
+  --max-exams 5 \
+  --teacher-name "Dr Lee" \
+  --frontend-url "http://localhost:3000"
+```
 
 ### Sample data
 
-Add demo files to `sample_data/` (see `sample_data/README.md`).
+| Path | Status |
+|------|--------|
+| `sample_data/exams/` | 15 student exam PDFs (Foundations of Psychology) |
+| `sample_data/syllabus/syllabus.pdf` | Course syllabus with weekly topics |
+| `sample_data/video/` | Add `lecture.mp4` or use `--youtube-url` |
+
+See `sample_data/README.md` for details.
+
+## Environment variables
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `LLM_PROVIDER` | No | `anthropic`, `kimi`, or `openai` (default: `anthropic`) |
+| `LLM_MODEL` | No | Override model name for the chosen provider |
+| `ANTHROPIC_API_KEY` | If using Anthropic | Claude API key |
+| `MOONSHOT_API_KEY` | If using Kimi | Moonshot API key |
+| `OPENAI_API_KEY` | If using OpenAI | OpenAI API key |
+| `VIDEODB_API_KEY` | Yes | VideoDB for transcription + clip retrieval |
+| `VIDEODB_LANGUAGE_CODE` | No | Transcript language (default: `en`) |
+| `DATABASE_URL` | No | SQLite default: `sqlite+aiosqlite:///./veluate.db` |
+| `CORS_ORIGINS` | No | Comma-separated (default: `http://localhost:3000`) |
+| `DEMO_YOUTUBE_URL` | For demo script | Default lecture URL for `run_demo` |
+
+### Frontend (`frontend/.env.local`)
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_API_URL` | Backend URL (default: `http://localhost:8000`) |
 
 ## Switching LLM providers
 
-Set `LLM_PROVIDER` in `backend/.env` — no code changes needed:
+Set in `backend/.env` — no code changes:
 
-| Provider | Value | API key env var | Default model |
-|----------|-------|-----------------|---------------|
-| Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
-| Kimi (Moonshot) | `kimi` | `MOONSHOT_API_KEY` | `moonshot-v1-32k` |
+| Provider | `LLM_PROVIDER` | API key | Default model |
+|----------|----------------|---------|---------------|
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
+| Kimi | `kimi` | `MOONSHOT_API_KEY` | `moonshot-v1-32k` |
 | OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o-mini` |
 
-Optional: override model with `LLM_MODEL=...`
+## API (alternative to UI)
 
-All agents use `get_llm()` from `app/services/llm.py` (LangChain).
+```bash
+curl -X POST http://localhost:8000/jobs \
+  -F "teacher_name=Dr Smith" \
+  -F "audience=Psychology undergrads" \
+  -F "syllabus=@sample_data/syllabus/syllabus.pdf" \
+  -F "youtube_urls=https://www.youtube.com/watch?v=..." \
+  -F "exams=@sample_data/exams/Student_1_Beatrice_Lim.pdf"
+
+# Poll results
+curl http://localhost:8000/jobs/{job_id}
+```
 
 ## Project structure
 
 ```
 backend/app/
-  main.py           FastAPI entry
-  api/routes/       HTTP endpoints
-  graph/            LangGraph pipeline (Phase 2+)
-  agents/           Agent prompts + logic
-  services/         LLM, VideoDB, file parsing
-  db/               SQLite models (Phase 1+)
-frontend/src/       Next.js dashboard
-sample_data/        Demo video, syllabus, exams
+  main.py              FastAPI entry
+  api/routes/          Job + health endpoints
+  graph/               LangGraph pipeline
+  agents/              Agent prompts + logic
+  services/            LLM, VideoDB, pipeline, demo
+  scripts/run_demo.py  CLI demo runner
+  db/                  SQLite models
+frontend/src/          Next.js dashboard
+sample_data/           Demo syllabus, exams, video
 ```
+
+## Hackathon demo checklist
+
+1. Start backend + frontend (`uv run uvicorn…`, `npm run dev`)
+2. Set `DEMO_YOUTUBE_URL` to a short psychology lecture on YouTube
+3. Run `uv run python -m app.scripts.run_demo` (or upload via UI)
+4. Open the printed `/jobs/{id}` URL
+5. Walk through: progress → heatmap peaks → exam gaps → cross-reference with clip evidence
+
+## Optional deploy
+
+- **Frontend:** Vercel — set `NEXT_PUBLIC_API_URL` to your backend URL
+- **Backend:** Railway — set env vars from `.env.example`, expose port 8000, update `CORS_ORIGINS`
 
 ## Build phases
 
-- [x] Phase 0 — Skeleton (this repo)
+- [x] Phase 0 — Skeleton
 - [x] Phase 1 — Job API + SQLite
 - [x] Phase 2 — LangGraph shell
 - [x] Phase 3 — Transcription agent + VideoDB
@@ -85,4 +194,4 @@ sample_data/        Demo video, syllabus, exams
 - [x] Phase 5 — Exam agent
 - [x] Phase 6 — Cross-reference agent
 - [x] Phase 7 — Frontend dashboard
-- [ ] Phase 8 — Polish + demo
+- [x] Phase 8 — Polish + demo

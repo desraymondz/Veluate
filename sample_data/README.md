@@ -2,42 +2,45 @@
 
 Demo assets for the Veluate pipeline.
 
-## Exams (`exams/`)
+## Included
 
-**15 student papers** for *Foundations of Psychology* (SIM, Semester 2 2026):
+| Path | Contents |
+|------|----------|
+| `syllabus/syllabus.pdf` | Foundations of Psychology — weekly topics |
+| `exams/Student_*.pdf` | 15 student exam papers (~52k chars total) |
 
-| File | Student |
-|------|---------|
-| `Student_1_Beatrice_Lim.pdf` | Beatrice Lim |
-| `Student_2_Chao_Fletcher.pdf` | Chao Fletcher |
-| … | … |
-| `Student_15_Prakash_Kumar.pdf` | Prakash Kumar |
+## Optional
 
-Each PDF is ~3–5k chars (~52k total). Answers include bracketed quality tags such as:
+| Path | Notes |
+|------|-------|
+| `video/lecture.mp4` | Local lecture clip (or use YouTube via demo script / UI) |
+
+## Quick demo
+
+```bash
+cd backend
+export DEMO_YOUTUBE_URL="https://www.youtube.com/watch?v=YOUR_VIDEO_ID"
+uv run python -m app.scripts.run_demo
+```
+
+## Exam papers
+
+Each answer includes bracketed quality tags useful for validating clustering:
 
 - `[Near-Perfect Academic Response]`
 - `[Struggles with Architecture Response]`
 - `[Terminology Confused Response]`
 - `[Total Concept Reversal Response]`
 
-These are useful for validating exam clustering in Phase 5.
-
-### Upload all exams via curl
+## Upload all exams via curl
 
 ```bash
 EXAM_FLAGS=$(for f in sample_data/exams/Student_*.pdf; do echo -n " -F exams=@$f"; done)
 
 curl -X POST http://localhost:8000/jobs \
-  -F "teacher_name=Dr Smith" \
+  -F "teacher_name=Dr Lee" \
   -F "audience=Psychology undergrads" \
   -F "syllabus=@sample_data/syllabus/syllabus.pdf" \
   $EXAM_FLAGS \
-  -F "youtube_urls=https://www.youtube.com/watch?v=..."
+  -F "youtube_urls=${DEMO_YOUTUBE_URL}"
 ```
-
-## Still needed
-
-| Folder | File | Notes |
-|--------|------|-------|
-| `syllabus/` | `syllabus.pdf` | Course syllabus — **required** for job creation |
-| `video/` | `lecture.mp4` | Lecture clip for transcription (or use YouTube URL) |

@@ -1,6 +1,4 @@
 from app.agents.exam import run_exam_analysis
-from app.graph.state import AgentState
+from app.graph.nodes._wrap import agent_node
 
-
-def exam_node(state: AgentState) -> dict:
-    return run_exam_analysis(state)
+exam_node = agent_node("exam", run_exam_analysis)

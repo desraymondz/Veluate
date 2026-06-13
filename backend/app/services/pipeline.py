@@ -24,6 +24,13 @@ _TRACKED_AGENTS = frozenset(
 )
 
 
+def _failed_agent_from_error(message: str) -> str | None:
+    for agent in _TRACKED_AGENTS:
+        if message.startswith(f"{agent}:"):
+            return agent
+    return None
+
+
 async def _set_job_status(job_id: str, status: JobStatus, error: str | None = None) -> None:
     async with async_session_factory() as session:
         job = await session.get(Job, job_id)
@@ -134,5 +141,17 @@ async def run_job(job_id: str) -> None:
         logger.info("Pipeline completed for job %s", job_id)
     except Exception as exc:
         logger.exception("Pipeline failed for job %s", job_id)
-        await _set_job_status(job_id, JobStatus.FAILED, str(exc))
-        await events.publish(job_id, {"type": "error", "message": str(exc)})
+        message = str(exc)
+        failed_agent = _failed_agent_from_error(message)
+        if failed_agent:
+            await events.publish(
+                job_id,
+                {
+                    "type": "agent",
+                    "agent": failed_agent,
+                    "status": "failed",
+                    "message": message,
+                },
+            )
+        await _set_job_status(job_id, JobStatus.FAILED, message)
+        await events.publish(job_id, {"type": "error", "message": message})

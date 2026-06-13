@@ -27,5 +27,6 @@ sample_data/video/*
 !sample_data/video/.gitkeep
 sample_data/syllabus/*
 !sample_data/syllabus/.gitkeep
+!sample_data/syllabus/syllabus.pdf
 sample_data/exams/*
 !sample_data/exams/.gitkeep

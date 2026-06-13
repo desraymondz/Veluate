@@ -1,6 +1,4 @@
 from app.agents.transcription import run_transcription
-from app.graph.state import AgentState
+from app.graph.nodes._wrap import agent_node
 
-
-def transcription_node(state: AgentState) -> dict:
-    return run_transcription(state)
+transcription_node = agent_node("transcription", run_transcription)

@@ -5,22 +5,26 @@ import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { PIPELINE_STEPS } from "@/lib/reports";
+import { PIPELINE_STEPS, parseFailedAgent } from "@/lib/reports";
 import type { AgentName, JobStatus } from "@/lib/types";
 
 type Props = {
   status: JobStatus;
   completedAgents: Set<AgentName>;
   errorMessage?: string | null;
+  failedAgent?: AgentName | null;
 };
 
 function stepState(
   stepId: AgentName,
   jobStatus: JobStatus,
-  completed: Set<AgentName>
+  completed: Set<AgentName>,
+  failedAgent: AgentName | null
 ): "done" | "active" | "pending" | "failed" {
+  if (failedAgent === stepId) return "failed";
   if (jobStatus === "failed") {
     if (completed.has(stepId)) return "done";
+    if (failedAgent) return "pending";
     return "failed";
   }
   if (completed.has(stepId)) return "done";
@@ -31,7 +35,8 @@ function stepState(
   return "pending";
 }
 
-export function JobProgress({ status, completedAgents, errorMessage }: Props) {
+export function JobProgress({ status, completedAgents, errorMessage, failedAgent }: Props) {
+  const resolvedFailed = failedAgent ?? parseFailedAgent(errorMessage);
   const doneCount = PIPELINE_STEPS.filter((s) =>
     completedAgents.has(s.id)
   ).length;
@@ -69,7 +74,7 @@ export function JobProgress({ status, completedAgents, errorMessage }: Props) {
         <Progress value={progress} />
         <ol className="space-y-3">
           {PIPELINE_STEPS.map((step) => {
-            const state = stepState(step.id, status, completedAgents);
+            const state = stepState(step.id, status, completedAgents, resolvedFailed);
             return (
               <li key={step.id} className="flex items-start gap-3">
                 {state === "done" && (
@@ -95,9 +100,14 @@ export function JobProgress({ status, completedAgents, errorMessage }: Props) {
           })}
         </ol>
         {errorMessage && (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {errorMessage}
-          </p>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive space-y-1">
+            {resolvedFailed && (
+              <p className="font-medium">
+                Failed at: {PIPELINE_STEPS.find((s) => s.id === resolvedFailed)?.label ?? resolvedFailed}
+              </p>
+            )}
+            <p className="break-words">{errorMessage}</p>
+          </div>
         )}
       </CardContent>
     </Card>

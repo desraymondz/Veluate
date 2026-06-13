@@ -14,7 +14,7 @@ from app.api.schemas.jobs import JobCreatedResponse, JobResponse
 from app.db.models import FileType, Job, JobFile, JobStatus
 from app.db.session import get_session
 from app.services import events
-from app.services.files import save_upload, validate_youtube_url
+from app.services.files import save_upload, validate_youtube_url_http
 from app.services.pipeline import run_job
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ async def create_job(
 ) -> JobCreatedResponse:
     videos = [v for v in videos if v.filename]
     exams = [e for e in exams if e.filename]
-    youtube_urls = [validate_youtube_url(url) for url in youtube_urls if url.strip()]
+    youtube_urls = [validate_youtube_url_http(url) for url in youtube_urls if url.strip()]
 
     if not videos and not youtube_urls:
         raise HTTPException(

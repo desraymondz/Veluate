@@ -28,11 +28,16 @@ def ensure_upload_dir() -> Path:
 def validate_youtube_url(url: str) -> str:
     url = url.strip()
     if not YOUTUBE_URL_PATTERN.match(url):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid YouTube URL: {url}",
-        )
+        raise ValueError(f"Invalid YouTube URL: {url}")
     return url
+
+
+def validate_youtube_url_http(url: str) -> str:
+    """FastAPI-friendly wrapper."""
+    try:
+        return validate_youtube_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 async def save_upload(
