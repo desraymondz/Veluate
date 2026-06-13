@@ -83,3 +83,7 @@ export async function retryJobStep(
   });
   return handleResponse(res);
 }
+
+export function summaryInfographicUrl(jobId: string): string {
+  return `${API_BASE}/jobs/${jobId}/summary-infographic`;
+}

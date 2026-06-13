@@ -5,7 +5,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,6 +20,7 @@ from app.db.models import FileType, Job, JobFile, JobStatus
 from app.db.session import get_session
 from app.services import events
 from app.services.files import save_upload, validate_youtube_url_http
+from app.services.infographic import summary_infographic_path
 from app.services.pipeline import get_retry_plan, retry_job, run_job
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,15 @@ async def create_job(
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(job_id: str, session: SessionDep) -> Job:
     return await _get_job_or_404(session, job_id)
+
+
+@router.get("/{job_id}/summary-infographic")
+async def get_summary_infographic(job_id: str, session: SessionDep) -> FileResponse:
+    await _get_job_or_404(session, job_id)
+    path = summary_infographic_path(job_id)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Summary infographic not available")
+    return FileResponse(path, media_type="image/png", filename=path.name)
 
 
 @router.post("/{job_id}/retry", response_model=JobRetryResponse, status_code=202)
