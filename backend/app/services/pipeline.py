@@ -7,7 +7,8 @@ request, so it opens its own DB sessions rather than reusing the route's.
 import asyncio
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
@@ -262,58 +263,64 @@ async def _publish_agent_completed(job_id: str, agent_name: str) -> None:
     logger.info("Agent %s completed for job %s", agent_name, job_id)
 
 
-<<<<<<< Updated upstream
-async def _execute_agents(
-    job_id: str, state: AgentState, agents: list[str]
-) -> None:
-    idx = 0
-    while idx < len(agents):
-        agent = agents[idx]
-        if agent in _PARALLEL_AGENTS:
-            batch: list[str] = []
-            while idx < len(agents) and agents[idx] in _PARALLEL_AGENTS:
-                batch.append(agents[idx])
-                idx += 1
+async def _execute_agents(job_id: str, state: AgentState, agents: list[str]) -> None:
+    """Run a list of agents, fanning out parallel-safe ones concurrently."""
 
-            outputs = await asyncio.gather(
-                *[asyncio.to_thread(_AGENT_RUNNERS[name], state) for name in batch]
+    async def _run_one(agent_name: str) -> None:
+        try:
+            runner = _AGENT_RUNNERS[agent_name]
+            output = await asyncio.to_thread(runner, state)
+            _merge_output_into_state(state, agent_name, output)
+            await _save_agent_result(job_id, agent_name, output)
+            await _publish_agent_completed(job_id, agent_name)
+        except Exception as exc:
+            msg = f"{agent_name}: {exc}"
+            await events.publish(
+                job_id,
+                {"type": "agent", "agent": agent_name, "status": "failed", "message": str(exc)},
             )
-            for name, output in zip(batch, outputs, strict=True):
-                state.update(output)
-                await _save_agent_result(job_id, name, output)
-                await _publish_agent_completed(job_id, name)
-        else:
-            output = await asyncio.to_thread(_AGENT_RUNNERS[agent], state)
-            state.update(output)
-            await _save_agent_result(job_id, agent, output)
-            await _publish_agent_completed(job_id, agent)
-            idx += 1
+            raise ValueError(msg) from exc
+
+    parallel_batch = [a for a in agents if a in _PARALLEL_AGENTS]
+    if parallel_batch:
+        first_parallel_idx = min(agents.index(a) for a in parallel_batch)
+        last_parallel_idx = max(agents.index(a) for a in parallel_batch)
+        before = [a for a in agents if a not in _PARALLEL_AGENTS and agents.index(a) < first_parallel_idx]
+        after = [a for a in agents if a not in _PARALLEL_AGENTS and agents.index(a) > last_parallel_idx]
+    else:
+        before = [a for a in agents if a not in _PARALLEL_AGENTS]
+        after = []
+
+    for agent_name in before:
+        await _run_one(agent_name)
+
+    if parallel_batch:
+        await asyncio.gather(*[_run_one(a) for a in parallel_batch])
+
+    for agent_name in after:
+        await _run_one(agent_name)
 
 
-async def _run_with_lock(job_id: str, coro) -> None:
+async def _run_with_lock(
+    job_id: str, coro: Callable[[], Coroutine[Any, Any, None]]
+) -> None:
     if job_id in _active_jobs:
-        raise RuntimeError(f"Job {job_id} is already running")
+        raise ValueError(f"Job {job_id} is already running")
     _active_jobs.add(job_id)
-=======
-async def run_job(job_id: str) -> None:
-    """Run the LangGraph evaluation pipeline for a job."""
-    logger.info("Pipeline started for job %s", job_id)
->>>>>>> Stashed changes
     try:
-        get_llm.cache_clear()
         await coro()
     finally:
         _active_jobs.discard(job_id)
 
 
 async def run_job(job_id: str) -> None:
-    """Run the full LangGraph evaluation pipeline for a job."""
+    """Run the LangGraph evaluation pipeline for a job."""
+    logger.info("Pipeline started for job %s", job_id)
 
-<<<<<<< Updated upstream
     async def _run() -> None:
-        logger.info("Pipeline started for job %s", job_id)
         try:
-            await _set_job_status(job_id, JobStatus.RUNNING, clear_error=True)
+            get_llm.cache_clear()
+            await _set_job_status(job_id, JobStatus.RUNNING)
 
             initial_state = await _load_initial_state(job_id)
             graph = get_graph()
@@ -329,7 +336,27 @@ async def run_job(job_id: str) -> None:
                         continue
 
                     await _save_agent_result(job_id, agent_name, node_output)
-                    await _publish_agent_completed(job_id, agent_name)
+
+                    node_errors: list[str] = node_output.get("errors") or []
+                    if node_errors:
+                        for error_msg in node_errors:
+                            await events.publish(
+                                job_id,
+                                {
+                                    "type": "agent",
+                                    "agent": agent_name,
+                                    "status": "failed",
+                                    "message": error_msg,
+                                },
+                            )
+                        logger.warning(
+                            "Agent %s failed gracefully for job %s: %s",
+                            agent_name,
+                            job_id,
+                            node_errors,
+                        )
+                    else:
+                        await _publish_agent_completed(job_id, agent_name)
 
             await _set_job_status(job_id, JobStatus.COMPLETED, clear_error=True)
             logger.info("Pipeline completed for job %s", job_id)
@@ -349,30 +376,6 @@ async def run_job(job_id: str) -> None:
                 )
             await _set_job_status(job_id, JobStatus.FAILED, message)
             await events.publish(job_id, {"type": "error", "message": message})
-=======
-                await _save_agent_result(job_id, agent_name, node_output)
-
-                node_errors: list[str] = node_output.get("errors") or []
-                if node_errors:
-                    for error_msg in node_errors:
-                        await events.publish(
-                            job_id,
-                            {
-                                "type": "agent",
-                                "agent": agent_name,
-                                "status": "failed",
-                                "message": error_msg,
-                            },
-                        )
-                    logger.warning(
-                        "Agent %s failed gracefully for job %s: %s",
-                        agent_name,
-                        job_id,
-                        node_errors,
-                    )
-                else:
-                    await _publish_agent_completed(job_id, agent_name)
->>>>>>> Stashed changes
 
     await _run_with_lock(job_id, _run)
 

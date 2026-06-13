@@ -8,13 +8,7 @@ from app.agents._context import lecture_context
 from app.graph.state import AgentState
 from app.services.llm import get_llm
 
-<<<<<<< Updated upstream
 _SYSTEM = """You are an expert instructional designer evaluating lecture structure.
-=======
-logger = logging.getLogger(__name__)
-
-_SYSTEM = """You are an expert instructional designer evaluating lecture structure, in the tradition of backward design and cognitive load theory.
->>>>>>> Stashed changes
 
 You will receive a timestamped transcript, the course syllabus, and the target audience profile. Your job is not to summarize the lecture — it's to diagnose where the *design* of the lecture helps or hurts learning.
 
