@@ -109,6 +109,27 @@ class VideoDBService:
 
         return merged
 
+    def get_collection(self, collection_id: str) -> Collection:
+        return self._conn.get_collection(collection_id)
+
+    def search_collection(
+        self, collection: Collection, query: str, top_k: int = 3
+    ) -> list[dict]:
+        """Semantic search across all videos in a collection."""
+        results = collection.search(query, result_threshold=top_k)
+        return [
+            {
+                "video_id": shot.video_id,
+                "start": float(shot.start),
+                "end": float(shot.end),
+                "text": shot.text or "",
+                "score": shot.search_score,
+                "stream_url": shot.stream_url,
+                "player_url": shot.player_url,
+            }
+            for shot in results.shots
+        ]
+
     def search_video(
         self, video: Video, query: str, top_k: int = 5
     ) -> list[dict]:

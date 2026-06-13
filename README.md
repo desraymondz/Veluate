@@ -78,6 +78,6 @@ sample_data/        Demo video, syllabus, exams
 - [x] Phase 3 — Transcription agent + VideoDB
 - [x] Phase 4 — Structure + Clarity agents
 - [x] Phase 5 — Exam agent
-- [ ] Phase 6 — Cross-reference agent
+- [x] Phase 6 — Cross-reference agent
 - [ ] Phase 7 — Frontend dashboard
 - [ ] Phase 8 — Polish + demo
