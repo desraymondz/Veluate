@@ -25,18 +25,30 @@ You receive:
 Write a final feedback report that answers: "Where did teaching break down — and how does
 that map to what students got wrong on the exam?"
 
-For each exam cluster, explain the causal link between what was taught (or poorly taught)
-at the retrieved moment and the exam mistakes. Reference structure/clarity findings when
-they overlap the same timestamp range.
+For each exam cluster:
+1. Explain the causal link between what was taught (or poorly taught) at the retrieved moment
+   and the exam mistakes. Reference structure/clarity findings when they overlap the same
+   timestamp range.
+2. Give one concrete rewrite suggestion: a short replacement passage (2–4 sentences) the
+   teacher could say instead of the retrieved excerpt to fix the identified breakdown. Write
+   it in the teacher's voice, as if scripting the improved moment. If no excerpt was
+   retrieved for a cluster, set rewrite_suggestion to null.
 
 Be direct, constructive, and specific. Avoid generic advice. If a cluster has no retrieved
-moment, say what was missing from the lecture rather than inventing a timestamp."""
+moment, say what was missing from the lecture rather than inventing a timestamp.
+
+You MUST respond entirely in English. Do not use any other language regardless of the language
+of the transcript or input materials."""
 
 
 class ClusterNarrative(BaseModel):
     exam_topic: str
     evidence: str = Field(description="How the teaching moment connects to exam failures")
     recommendation: str = Field(description="One actionable fix for the next lecture")
+    rewrite_suggestion: str | None = Field(
+        default=None,
+        description="A 2–4 sentence replacement for the retrieved excerpt, written in the teacher's voice. Null if no excerpt was retrieved.",
+    )
 
 
 class CrossReferenceLLMOutput(BaseModel):
@@ -289,6 +301,7 @@ def run_cross_reference_analysis(state: AgentState) -> dict:
             "retrieval_source": retrieval.get("source") if retrieval else None,
             "evidence": narrative.evidence if narrative else "",
             "recommendation": narrative.recommendation if narrative else "",
+            "rewrite_suggestion": narrative.rewrite_suggestion if narrative else None,
             "structure_link": None,
             "clarity_link": None,
         }

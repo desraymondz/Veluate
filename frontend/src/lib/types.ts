@@ -84,6 +84,7 @@ export type CrossReference = {
   clip_url?: string | null;
   evidence: string;
   recommendation?: string;
+  rewrite_suggestion?: string | null;
   structure_link?: StructureFinding | null;
   clarity_link?: HeatmapPoint | null;
 };
