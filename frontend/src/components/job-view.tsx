@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { JobProgress } from "@/components/job-progress";
 import { ReportDashboard } from "@/components/report-dashboard";
+import { TranscriptSection } from "@/components/transcript-section";
 import { getJob } from "@/lib/api";
 import { hasPartialReport, parseAgentResults, parseFailedAgent } from "@/lib/reports";
 import type { Job } from "@/lib/types";
@@ -54,9 +55,19 @@ export function JobView({ jobId, initialJob }: Props) {
       <JobProgress
         status={job.status}
         completedAgents={reports.completedAgents}
+        agentResults={job.agent_results}
+        jobCreatedAt={job.created_at}
+        jobUpdatedAt={job.updated_at}
         errorMessage={job.error_message}
         failedAgent={failedAgent}
       />
+
+      {reports.transcription && (
+        <TranscriptSection
+          transcription={reports.transcription}
+          jobFiles={job.files}
+        />
+      )}
 
       {isFailed && hasPartialReport(reports) && (
         <p className="border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">

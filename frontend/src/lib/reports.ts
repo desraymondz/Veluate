@@ -6,6 +6,7 @@ import type {
   FinalReport,
   ParsedReports,
   StructureReport,
+  TranscriptionResult,
 } from "./types";
 
 function parseOutput<T>(raw: string | null): T | null {
@@ -21,6 +22,7 @@ export function parseAgentResults(
   agentResults: AgentResult[]
 ): ParsedReports {
   const completedAgents = new Set<AgentName>();
+  let transcription: TranscriptionResult | null = null;
   let structure: StructureReport | null = null;
   let clarity: ClarityReport | null = null;
   let exam: ExamAnalysis | null = null;
@@ -31,6 +33,18 @@ export function parseAgentResults(
     const data = parseOutput<Record<string, unknown>>(result.output);
     if (!data) continue;
 
+    if (result.agent_name === "transcription" && Array.isArray(data.transcript)) {
+      transcription = {
+        transcript: data.transcript as TranscriptionResult["transcript"],
+        videodb_collection_id:
+          typeof data.videodb_collection_id === "string"
+            ? data.videodb_collection_id
+            : null,
+        videodb_videos: Array.isArray(data.videodb_videos)
+          ? (data.videodb_videos as TranscriptionResult["videodb_videos"])
+          : [],
+      };
+    }
     if (result.agent_name === "structure" && data.structure_report) {
       structure = data.structure_report as StructureReport;
     }
@@ -45,7 +59,7 @@ export function parseAgentResults(
     }
   }
 
-  return { structure, clarity, exam, final, completedAgents };
+  return { transcription, structure, clarity, exam, final, completedAgents };
 }
 
 /** Parse agent name from backend error messages like "structure: ..." */

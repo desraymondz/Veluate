@@ -1,35 +1,39 @@
 "use client";
 
-import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Circle, Loader2, Timer, XCircle } from "lucide-react";
 
+import {
+  computeStepTimings,
+  formatStopwatch,
+  totalElapsedMs,
+} from "@/lib/pipeline-timing";
 import { PIPELINE_STEPS, parseFailedAgent } from "@/lib/reports";
-import type { AgentName, JobStatus } from "@/lib/types";
+import type { AgentName, AgentResult, JobStatus } from "@/lib/types";
 
 type Props = {
   status: JobStatus;
   completedAgents: Set<AgentName>;
+  agentResults: AgentResult[];
+  jobCreatedAt: string;
+  jobUpdatedAt: string;
   errorMessage?: string | null;
   failedAgent?: AgentName | null;
 };
 
-function stepState(
-  stepId: AgentName,
-  jobStatus: JobStatus,
-  completed: Set<AgentName>,
-  failedAgent: AgentName | null
-): "done" | "active" | "pending" | "failed" {
-  if (failedAgent === stepId) return "failed";
-  if (jobStatus === "failed") {
-    if (completed.has(stepId)) return "done";
-    if (failedAgent) return "pending";
-    return "failed";
-  }
-  if (completed.has(stepId)) return "done";
-  if (jobStatus === "running" || jobStatus === "pending") {
-    const firstIncomplete = PIPELINE_STEPS.find((s) => !completed.has(s.id));
-    if (firstIncomplete?.id === stepId) return "active";
-  }
-  return "pending";
+function useTicker(active: boolean, intervalMs = 250): number {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!active) {
+      setNow(Date.now());
+      return;
+    }
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [active, intervalMs]);
+
+  return now;
 }
 
 function statusLabel(status: JobStatus): string {
@@ -39,8 +43,67 @@ function statusLabel(status: JobStatus): string {
   return "Pending";
 }
 
-export function JobProgress({ status, completedAgents, errorMessage, failedAgent }: Props) {
+function StepTimer({
+  durationMs,
+  isLive,
+  state,
+}: {
+  durationMs: number | null;
+  isLive: boolean;
+  state: "done" | "active" | "pending" | "failed";
+}) {
+  if (durationMs == null) {
+    return (
+      <span className="font-mono text-xs tabular-nums text-muted-foreground/50">
+        —
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 font-mono text-xs tabular-nums ${
+        state === "active"
+          ? "text-foreground"
+          : state === "failed"
+            ? "text-muted-foreground"
+            : "text-muted-foreground"
+      }`}
+    >
+      {state === "active" && (
+        <Timer className="size-3 shrink-0 opacity-70" aria-hidden />
+      )}
+      {formatStopwatch(durationMs, isLive)}
+    </span>
+  );
+}
+
+export function JobProgress({
+  status,
+  completedAgents,
+  agentResults,
+  jobCreatedAt,
+  jobUpdatedAt,
+  errorMessage,
+  failedAgent,
+}: Props) {
   const resolvedFailed = failedAgent ?? parseFailedAgent(errorMessage);
+  const isRunning = status === "running" || status === "pending";
+  const now = useTicker(isRunning);
+
+  const timings = computeStepTimings(
+    { status, created_at: jobCreatedAt, updated_at: jobUpdatedAt },
+    agentResults,
+    completedAgents,
+    resolvedFailed,
+    now
+  );
+
+  const totalMs = totalElapsedMs(
+    { status, created_at: jobCreatedAt, updated_at: jobUpdatedAt },
+    now
+  );
+
   const doneCount = PIPELINE_STEPS.filter((s) =>
     completedAgents.has(s.id)
   ).length;
@@ -62,9 +125,15 @@ export function JobProgress({ status, completedAgents, errorMessage, failedAgent
                 : "Transcription runs first, then parallel analysis."}
           </p>
         </div>
-        <span className="rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-wider text-foreground">
-          {statusLabel(status)}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <span className="rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-wider text-foreground">
+            {statusLabel(status)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 font-mono text-xs tabular-nums text-muted-foreground">
+            <Timer className="size-3" aria-hidden />
+            Total {formatStopwatch(totalMs, isRunning)}
+          </span>
+        </div>
       </div>
 
       <div className="px-6 py-5">
@@ -77,7 +146,9 @@ export function JobProgress({ status, completedAgents, errorMessage, failedAgent
 
         <ol className="space-y-4">
           {PIPELINE_STEPS.map((step) => {
-            const state = stepState(step.id, status, completedAgents, resolvedFailed);
+            const timing = timings.get(step.id);
+            const state = timing?.state ?? "pending";
+
             return (
               <li key={step.id} className="flex items-start gap-4">
                 {state === "done" && (
@@ -93,7 +164,14 @@ export function JobProgress({ status, completedAgents, errorMessage, failedAgent
                   <Circle className="mt-0.5 size-5 shrink-0 text-border" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-foreground">{step.label}</p>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-medium text-foreground">{step.label}</p>
+                    <StepTimer
+                      durationMs={timing?.durationMs ?? null}
+                      isLive={timing?.isLive ?? false}
+                      state={state}
+                    />
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {step.description}
                   </p>

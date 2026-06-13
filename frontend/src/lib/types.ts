@@ -88,6 +88,29 @@ export type CrossReference = {
   clarity_link?: HeatmapPoint | null;
 };
 
+export type TranscriptSegment = {
+  start: number;
+  end: number;
+  text: string;
+  video_id?: string;
+  local_start?: number;
+  local_end?: number;
+};
+
+export type VideoSource = {
+  id: string;
+  name: string;
+  length: number | null;
+  segment_count: number;
+  source_type: "file" | "youtube";
+};
+
+export type TranscriptionResult = {
+  transcript: TranscriptSegment[];
+  videodb_collection_id: string | null;
+  videodb_videos: VideoSource[];
+};
+
 export type FinalReport = {
   summary: string;
   teacher_name: string;
@@ -108,6 +131,7 @@ export type FinalReport = {
 };
 
 export type ParsedReports = {
+  transcription: TranscriptionResult | null;
   structure: StructureReport | null;
   clarity: ClarityReport | null;
   exam: ExamAnalysis | null;
