@@ -262,6 +262,7 @@ async def _publish_agent_completed(job_id: str, agent_name: str) -> None:
     logger.info("Agent %s completed for job %s", agent_name, job_id)
 
 
+<<<<<<< Updated upstream
 async def _execute_agents(
     job_id: str, state: AgentState, agents: list[str]
 ) -> None:
@@ -293,6 +294,11 @@ async def _run_with_lock(job_id: str, coro) -> None:
     if job_id in _active_jobs:
         raise RuntimeError(f"Job {job_id} is already running")
     _active_jobs.add(job_id)
+=======
+async def run_job(job_id: str) -> None:
+    """Run the LangGraph evaluation pipeline for a job."""
+    logger.info("Pipeline started for job %s", job_id)
+>>>>>>> Stashed changes
     try:
         get_llm.cache_clear()
         await coro()
@@ -303,6 +309,7 @@ async def _run_with_lock(job_id: str, coro) -> None:
 async def run_job(job_id: str) -> None:
     """Run the full LangGraph evaluation pipeline for a job."""
 
+<<<<<<< Updated upstream
     async def _run() -> None:
         logger.info("Pipeline started for job %s", job_id)
         try:
@@ -342,6 +349,30 @@ async def run_job(job_id: str) -> None:
                 )
             await _set_job_status(job_id, JobStatus.FAILED, message)
             await events.publish(job_id, {"type": "error", "message": message})
+=======
+                await _save_agent_result(job_id, agent_name, node_output)
+
+                node_errors: list[str] = node_output.get("errors") or []
+                if node_errors:
+                    for error_msg in node_errors:
+                        await events.publish(
+                            job_id,
+                            {
+                                "type": "agent",
+                                "agent": agent_name,
+                                "status": "failed",
+                                "message": error_msg,
+                            },
+                        )
+                    logger.warning(
+                        "Agent %s failed gracefully for job %s: %s",
+                        agent_name,
+                        job_id,
+                        node_errors,
+                    )
+                else:
+                    await _publish_agent_completed(job_id, agent_name)
+>>>>>>> Stashed changes
 
     await _run_with_lock(job_id, _run)
 
