@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.schemas.jobs import (
+    AskLectureRequest,
+    AskLectureResponse,
     JobCreatedResponse,
     JobResponse,
     JobRetryRequest,
@@ -21,6 +23,7 @@ from app.db.session import get_session
 from app.services import events
 from app.services.files import save_upload, validate_youtube_url_http
 from app.services.infographic import summary_infographic_path
+from app.services.lecture_search import ask_lecture
 from app.services.pipeline import get_retry_plan, retry_job, run_job
 
 logger = logging.getLogger(__name__)
@@ -40,6 +43,22 @@ async def _get_job_or_404(session: AsyncSession, job_id: str) -> Job:
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+def _load_transcription(job: Job) -> dict:
+    for result in job.agent_results:
+        if result.agent_name == "transcription" and result.output:
+            try:
+                return json.loads(result.output)
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Transcription data is corrupted",
+                ) from exc
+    raise HTTPException(
+        status_code=409,
+        detail="Transcription not available yet. Wait for indexing to complete.",
+    )
 
 
 @router.post("", response_model=JobCreatedResponse, status_code=201)
@@ -139,6 +158,28 @@ async def create_job(
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(job_id: str, session: SessionDep) -> Job:
     return await _get_job_or_404(session, job_id)
+
+
+@router.post("/{job_id}/ask", response_model=AskLectureResponse)
+async def ask_lecture_question(
+    job_id: str,
+    body: AskLectureRequest,
+    session: SessionDep,
+) -> AskLectureResponse:
+    job = await _get_job_or_404(session, job_id)
+    transcription = _load_transcription(job)
+
+    question = body.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    result = ask_lecture(
+        question,
+        transcript=transcription.get("transcript") or [],
+        videodb_collection_id=transcription.get("videodb_collection_id"),
+        videodb_videos=transcription.get("videodb_videos") or [],
+    )
+    return AskLectureResponse(**result)
 
 
 @router.get("/{job_id}/summary-infographic")

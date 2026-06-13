@@ -68,3 +68,19 @@ class JobRetryResponse(BaseModel):
     status: str
     message: str
     agents: list[str]
+
+
+class AskLectureRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+
+
+class AskLectureResponse(BaseModel):
+    question: str
+    taught: bool
+    summary: str
+    quote: str | None
+    confidence: str | None
+    start_sec: float | None
+    end_sec: float | None
+    clip_url: str | None
+    transcript_excerpt: str | None

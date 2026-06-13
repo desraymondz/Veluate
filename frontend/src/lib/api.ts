@@ -1,4 +1,4 @@
-import type { AgentName, Job, JobRetryResponse } from "./types";
+import type { AgentName, AskLectureResponse, Job, JobRetryResponse } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -86,4 +86,16 @@ export async function retryJobStep(
 
 export function summaryInfographicUrl(jobId: string): string {
   return `${API_BASE}/jobs/${jobId}/summary-infographic`;
+}
+
+export async function askLecture(
+  jobId: string,
+  question: string
+): Promise<AskLectureResponse> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  return handleResponse(res);
 }

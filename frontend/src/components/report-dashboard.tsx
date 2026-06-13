@@ -1,6 +1,7 @@
 "use client";
 
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { AskTheLectureSection } from "@/components/ask-lecture-section";
 import { ConfusionHeatmap } from "@/components/confusion-heatmap";
 import { TeachingEvidenceSection } from "@/components/evidence-section";
 import {
@@ -275,17 +276,31 @@ export function ReportDashboard({
       )}
 
       {transcription && (
-        <CollapsibleSection
-          label={hasReport ? "Source" : "Transcript"}
-          order={hasReport ? 6 : 1}
-          title="Lecture transcript"
-          summary={transcriptSummary(transcription)}
-        >
-          <TranscriptSection
-            transcription={transcription}
-            jobFiles={jobFiles}
-          />
-        </CollapsibleSection>
+        <>
+          <CollapsibleSection
+            label="Explore"
+            order={hasReport ? 6 : 2}
+            title="Ask the lecture"
+            summary="Search whether a topic was taught"
+          >
+            <AskTheLectureSection
+              jobId={jobId ?? ""}
+              disabled={!jobId || !transcription.transcript.length}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            label={hasReport ? "Source" : "Transcript"}
+            order={hasReport ? 7 : 1}
+            title="Lecture transcript"
+            summary={transcriptSummary(transcription)}
+          >
+            <TranscriptSection
+              transcription={transcription}
+              jobFiles={jobFiles}
+            />
+          </CollapsibleSection>
+        </>
       )}
     </div>
   );

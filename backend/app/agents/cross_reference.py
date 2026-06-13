@@ -5,10 +5,10 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.graph.state import AgentState
-from app.services.chunking import chunk_transcript, score_chunks_by_query
+from app.services.chunking import chunk_transcript
 from app.services.infographic import generate_summary_infographic
+from app.services.lecture_search import search_lecture_moment
 from app.services.llm import get_llm
-from app.services.videodb import get_videodb_service
 
 logger = logging.getLogger(__name__)
 
@@ -64,23 +64,6 @@ def _require_upstream(state: AgentState) -> None:
         )
 
 
-def _video_offsets(videodb_videos: list[dict]) -> dict[str, float]:
-    offsets: dict[str, float] = {}
-    offset = 0.0
-    for video in videodb_videos:
-        offsets[video["id"]] = offset
-        offset += float(video.get("length") or 0)
-    return offsets
-
-
-def _to_global_time(
-    video_id: str | None, local_sec: float, offsets: dict[str, float]
-) -> float:
-    if not video_id:
-        return local_sec
-    return offsets.get(video_id, 0.0) + local_sec
-
-
 def _cluster_query(cluster: dict) -> str:
     parts = [cluster.get("topic", "")]
     if cluster.get("syllabus_section"):
@@ -93,56 +76,14 @@ def _retrieve_moment(
     state: AgentState,
     cluster: dict,
     chunks: list[dict],
-    offsets: dict[str, float],
 ) -> dict | None:
-    query = _cluster_query(cluster)
-    collection_id = state.get("videodb_collection_id")
-
-    if collection_id:
-        try:
-            service = get_videodb_service()
-            collection = service.get_collection(collection_id)
-            hits = service.search_collection(collection, query, top_k=1)
-            if hits:
-                hit = hits[0]
-                global_start = _to_global_time(hit["video_id"], hit["start"], offsets)
-                global_end = _to_global_time(hit["video_id"], hit["end"], offsets)
-                clip_url = None
-                if hit.get("video_id"):
-                    try:
-                        video = collection.get_video(hit["video_id"])
-                        clip_url = service.get_clip_url(
-                            video, hit["start"], hit["end"]
-                        )
-                    except Exception as exc:
-                        logger.warning("Clip URL generation failed: %s", exc)
-
-                return {
-                    "source": "videodb",
-                    "start_sec": global_start,
-                    "end_sec": global_end,
-                    "video_id": hit["video_id"],
-                    "transcript_excerpt": hit.get("text", ""),
-                    "clip_url": clip_url,
-                    "search_score": hit.get("score"),
-                }
-        except Exception as exc:
-            logger.warning("VideoDB search failed for %r: %s", query, exc)
-
-    chunk_hits = score_chunks_by_query(chunks, query, top_k=1)
-    if chunk_hits:
-        hit = chunk_hits[0]
-        return {
-            "source": "transcript_chunk",
-            "start_sec": hit["start_sec"],
-            "end_sec": hit["end_sec"],
-            "video_id": hit.get("video_id"),
-            "transcript_excerpt": hit["text"],
-            "clip_url": None,
-            "search_score": None,
-        }
-
-    return None
+    return search_lecture_moment(
+        _cluster_query(cluster),
+        transcript=state.get("transcript") or [],
+        videodb_collection_id=state.get("videodb_collection_id"),
+        videodb_videos=state.get("videodb_videos") or [],
+        chunks=chunks,
+    )
 
 
 def _overlap(a_start: float, a_end: float, b_start: float, b_end: float) -> bool:
@@ -253,10 +194,8 @@ def run_cross_reference_analysis(state: AgentState) -> dict:
 
     transcript = state.get("transcript") or []
     chunks = chunk_transcript(transcript)
-    offsets = _video_offsets(state.get("videodb_videos") or [])
-
     retrievals = [
-        _retrieve_moment(state, cluster, chunks, offsets) for cluster in weak_clusters
+        _retrieve_moment(state, cluster, chunks) for cluster in weak_clusters
     ]
 
     llm = get_llm().with_structured_output(CrossReferenceLLMOutput)

@@ -138,6 +138,18 @@ export type FinalReport = {
   }[];
 };
 
+export type AskLectureResponse = {
+  question: string;
+  taught: boolean;
+  summary: string;
+  quote: string | null;
+  confidence: string | null;
+  start_sec: number | null;
+  end_sec: number | null;
+  clip_url: string | null;
+  transcript_excerpt: string | null;
+};
+
 export type ParsedReports = {
   transcription: TranscriptionResult | null;
   structure: StructureReport | null;
