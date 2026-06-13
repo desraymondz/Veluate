@@ -33,10 +33,15 @@ Then `GET /jobs/{id}` for status/results, `GET /jobs/{id}/events` for SSE progre
 ```bash
 cd frontend
 npm install
+cp .env.local.example .env.local   # optional; defaults to localhost:8000
 npm run dev
 ```
 
 Open http://localhost:3000
+
+1. **Upload** — teacher name, audience, syllabus PDF, video file(s) and/or YouTube URL(s), optional exam PDFs
+2. **Job page** (`/jobs/{id}`) — live pipeline progress (polls every 2s)
+3. **Report** — tabs for Cross-reference, Heatmap, Structure, Exam gaps, and Evidence clips
 
 ### Sample data
 
@@ -79,5 +84,5 @@ sample_data/        Demo video, syllabus, exams
 - [x] Phase 4 — Structure + Clarity agents
 - [x] Phase 5 — Exam agent
 - [x] Phase 6 — Cross-reference agent
-- [ ] Phase 7 — Frontend dashboard
+- [x] Phase 7 — Frontend dashboard
 - [ ] Phase 8 — Polish + demo
