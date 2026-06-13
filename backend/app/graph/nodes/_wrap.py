@@ -9,7 +9,11 @@ logger = logging.getLogger(__name__)
 
 
 def agent_node(agent_name: str, run_fn: Callable[[AgentState], dict]):
-    """Run an agent; prefix failures with agent name for pipeline/UI parsing."""
+    """Run an agent; on failure append to state errors instead of crashing the pipeline.
+
+    Returning {"errors": [...]} lets LangGraph's operator.add reducer accumulate
+    failures across parallel nodes while the remaining agents still complete.
+    """
 
     def node(state: AgentState) -> dict:
         try:
@@ -18,7 +22,7 @@ def agent_node(agent_name: str, run_fn: Callable[[AgentState], dict]):
             logger.exception(
                 "Agent %s failed for job %s", agent_name, state["job_id"]
             )
-            raise RuntimeError(f"{agent_name}: {exc}") from exc
+            return {"errors": [f"{agent_name}: {exc}"]}
 
     node.__name__ = f"{agent_name}_node"
     return node

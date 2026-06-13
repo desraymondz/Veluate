@@ -1,5 +1,6 @@
 """Structure agent — evaluates lesson flow, sequencing, and narrative coherence."""
 
+import logging
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -7,6 +8,8 @@ from pydantic import BaseModel, Field
 from app.agents._context import lecture_context
 from app.graph.state import AgentState
 from app.services.llm import get_llm
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM = """You are an expert instructional designer evaluating lecture structure.
 
@@ -39,8 +42,9 @@ class StructureReportOutput(BaseModel):
 
 def run_structure_analysis(state: AgentState) -> dict:
     if not state.get("transcript"):
-        raise ValueError("Structure analysis requires a transcript from the transcription step")
+        raise ValueError("transcript unavailable — skipping structure analysis")
 
+    logger.info("Running structure analysis for job %s", state["job_id"])
     llm = get_llm().with_structured_output(StructureReportOutput)
     result: StructureReportOutput = llm.invoke(
         [
