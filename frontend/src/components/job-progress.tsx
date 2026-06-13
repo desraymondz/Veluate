@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, Loader2, Timer, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Loader2,
+  RotateCcw,
+  Timer,
+  XCircle,
+} from "lucide-react";
 
 import {
   computeStepTimings,
   formatStopwatch,
   totalElapsedMs,
 } from "@/lib/pipeline-timing";
-import { PIPELINE_STEPS, parseFailedAgent } from "@/lib/reports";
+import {
+  PIPELINE_STEPS,
+  canRetryStep,
+  parseFailedAgent,
+  retryIncludes,
+} from "@/lib/reports";
 import type { AgentName, AgentResult, JobStatus } from "@/lib/types";
 
 type Props = {
@@ -19,6 +31,8 @@ type Props = {
   jobUpdatedAt: string;
   errorMessage?: string | null;
   failedAgent?: AgentName | null;
+  retryingAgent?: AgentName | null;
+  onRetry?: (agent: AgentName) => void | Promise<void>;
 };
 
 function useTicker(active: boolean, intervalMs = 250): number {
@@ -78,6 +92,15 @@ function StepTimer({
   );
 }
 
+function retryHint(agent: AgentName): string | null {
+  const also = retryIncludes(agent);
+  if (!also.length) return null;
+  const labels = also.map(
+    (id) => PIPELINE_STEPS.find((s) => s.id === id)?.label ?? id
+  );
+  return `Also re-runs: ${labels.join(", ")}`;
+}
+
 export function JobProgress({
   status,
   completedAgents,
@@ -86,6 +109,8 @@ export function JobProgress({
   jobUpdatedAt,
   errorMessage,
   failedAgent,
+  retryingAgent,
+  onRetry,
 }: Props) {
   const resolvedFailed = failedAgent ?? parseFailedAgent(errorMessage);
   const isRunning = status === "running" || status === "pending";
@@ -121,7 +146,7 @@ export function JobProgress({
             {status === "completed"
               ? "All agents finished."
               : status === "failed"
-                ? "Stopped before completion."
+                ? "Retry a step without re-running transcription."
                 : "Transcription runs first, then parallel analysis."}
           </p>
         </div>
@@ -148,6 +173,19 @@ export function JobProgress({
           {PIPELINE_STEPS.map((step) => {
             const timing = timings.get(step.id);
             const state = timing?.state ?? "pending";
+            const showRetry =
+              onRetry &&
+              canRetryStep(
+                step.id,
+                status,
+                completedAgents,
+                resolvedFailed
+              ) &&
+              (state === "failed" ||
+                state === "done" ||
+                (state === "pending" && status === "failed"));
+            const isRetrying = retryingAgent === step.id;
+            const hint = showRetry ? retryHint(step.id) : null;
 
             return (
               <li key={step.id} className="flex items-start gap-4">
@@ -164,17 +202,39 @@ export function JobProgress({
                   <Circle className="mt-0.5 size-5 shrink-0 text-border" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <p className="font-medium text-foreground">{step.label}</p>
-                    <StepTimer
-                      durationMs={timing?.durationMs ?? null}
-                      isLive={timing?.isLive ?? false}
-                      state={state}
-                    />
+                    <div className="flex items-center gap-2">
+                      {showRetry && (
+                        <button
+                          type="button"
+                          disabled={Boolean(retryingAgent) || isRunning}
+                          onClick={() => onRetry(step.id)}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {isRetrying ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <RotateCcw className="size-3" />
+                          )}
+                          Retry
+                        </button>
+                      )}
+                      <StepTimer
+                        durationMs={timing?.durationMs ?? null}
+                        isLive={timing?.isLive ?? false}
+                        state={state}
+                      />
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {step.description}
                   </p>
+                  {hint && (
+                    <p className="mt-1 text-xs text-muted-foreground/80">
+                      {hint}
+                    </p>
+                  )}
                 </div>
               </li>
             );
@@ -184,11 +244,34 @@ export function JobProgress({
         {errorMessage && (
           <div className="mt-6 border border-border bg-muted px-4 py-3 text-sm">
             {resolvedFailed && (
-              <p className="mb-1 font-medium text-foreground">
-                Failed at{" "}
-                {PIPELINE_STEPS.find((s) => s.id === resolvedFailed)?.label ??
-                  resolvedFailed}
-              </p>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="font-medium text-foreground">
+                  Failed at{" "}
+                  {PIPELINE_STEPS.find((s) => s.id === resolvedFailed)?.label ??
+                    resolvedFailed}
+                </p>
+                {onRetry &&
+                  canRetryStep(
+                    resolvedFailed,
+                    status,
+                    completedAgents,
+                    resolvedFailed
+                  ) && (
+                    <button
+                      type="button"
+                      disabled={Boolean(retryingAgent) || isRunning}
+                      onClick={() => onRetry(resolvedFailed)}
+                      className="inline-flex items-center gap-1.5 border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-foreground/[0.06] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {retryingAgent === resolvedFailed ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="size-3.5" />
+                      )}
+                      Retry this step
+                    </button>
+                  )}
+              </div>
             )}
             <p className="break-words text-muted-foreground">{errorMessage}</p>
           </div>

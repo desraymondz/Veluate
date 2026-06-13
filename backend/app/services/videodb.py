@@ -149,8 +149,9 @@ class VideoDBService:
         ]
 
     def get_clip_url(self, video: Video, start: float, end: float) -> str:
-        """Generate an HLS stream URL for a time range within a video."""
-        return video.generate_stream(timeline=[(start, end)])
+        """Generate a playback URL clipped to [start, end] seconds."""
+        video.generate_stream(timeline=[(float(start), float(end))])
+        return video.player_url or video.stream_url or ""
 
 
 @lru_cache

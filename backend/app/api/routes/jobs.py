@@ -10,12 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.schemas.jobs import JobCreatedResponse, JobResponse
+from app.api.schemas.jobs import (
+    JobCreatedResponse,
+    JobResponse,
+    JobRetryRequest,
+    JobRetryResponse,
+)
 from app.db.models import FileType, Job, JobFile, JobStatus
 from app.db.session import get_session
 from app.services import events
 from app.services.files import save_upload, validate_youtube_url_http
-from app.services.pipeline import run_job
+from app.services.pipeline import get_retry_plan, retry_job, run_job
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +138,38 @@ async def create_job(
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(job_id: str, session: SessionDep) -> Job:
     return await _get_job_or_404(session, job_id)
+
+
+@router.post("/{job_id}/retry", response_model=JobRetryResponse, status_code=202)
+async def retry_job_step(
+    job_id: str,
+    body: JobRetryRequest,
+    session: SessionDep,
+) -> JobRetryResponse:
+    job = await _get_job_or_404(session, job_id)
+
+    if job.status == JobStatus.RUNNING.value:
+        raise HTTPException(status_code=409, detail="Job is already running")
+
+    if job.status == JobStatus.PENDING.value:
+        raise HTTPException(
+            status_code=409,
+            detail="Job is still starting. Wait for the first run to finish or fail.",
+        )
+
+    try:
+        plan = get_retry_plan(body.agent)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    asyncio.create_task(retry_job(job_id, body.agent))
+
+    return JobRetryResponse(
+        id=job_id,
+        status=JobStatus.RUNNING.value,
+        message=f"Retrying from {body.agent}",
+        agents=plan,
+    )
 
 
 @router.get("/{job_id}/events")

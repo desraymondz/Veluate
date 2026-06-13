@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+from app.api.schemas._datetime import serialize_utc_datetime
 
 
 class JobFileResponse(BaseModel):
@@ -15,6 +17,10 @@ class JobFileResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
+
 
 class AgentResultResponse(BaseModel):
     id: str
@@ -23,6 +29,10 @@ class AgentResultResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
 
 
 class JobResponse(BaseModel):
@@ -38,8 +48,23 @@ class JobResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at", "updated_at")
+    def serialize_timestamps(self, value: datetime) -> str:
+        return serialize_utc_datetime(value)
+
 
 class JobCreatedResponse(BaseModel):
     id: str
     status: str
     message: str
+
+
+class JobRetryRequest(BaseModel):
+    agent: str
+
+
+class JobRetryResponse(BaseModel):
+    id: str
+    status: str
+    message: str
+    agents: list[str]

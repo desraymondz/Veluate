@@ -1,4 +1,4 @@
-import type { Job } from "./types";
+import type { AgentName, Job, JobRetryResponse } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -68,6 +68,18 @@ export async function createJob(payload: CreateJobPayload): Promise<JobCreatedRe
   const res = await fetch(`${API_BASE}/jobs`, {
     method: "POST",
     body: form,
+  });
+  return handleResponse(res);
+}
+
+export async function retryJobStep(
+  jobId: string,
+  agent: AgentName
+): Promise<JobRetryResponse> {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agent }),
   });
   return handleResponse(res);
 }

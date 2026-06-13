@@ -33,6 +33,13 @@ export type Job = {
   agent_results: AgentResult[];
 };
 
+export type JobRetryResponse = {
+  id: string;
+  status: string;
+  message: string;
+  agents: string[];
+};
+
 export type StructureFinding = {
   type: string;
   severity: "low" | "medium" | "high";
