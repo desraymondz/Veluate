@@ -1,6 +1,52 @@
 # Veluate
 
-AI-powered teacher evaluation system. Analyses lecture recordings with a multi-agent LangGraph pipeline and cross-references teaching gaps with student exam performance.
+AI-powered teacher evaluation that links *how you taught* to *what students missed* — with video proof.
+
+## Problem
+
+Teachers receive almost no structured, data-driven feedback on how well they actually teach.
+
+End-of-semester student surveys are:
+
+- **Subjective** — driven by student sentiment, not learning outcomes
+- **Delayed** — feedback arrives too late to change anything
+- **Disconnected** — never tied to measurable evidence of understanding
+
+There is no system today that connects *how a teacher explains a concept* to *whether students actually understood it at exam time*. Students underperform not because the content is hard, but because the delivery was poor — and nobody catches it in time.
+
+## Solution
+
+Veluate ingests lecture recordings, syllabi, and student exam papers, then runs a multi-agent LangGraph pipeline to answer one question:
+
+> **Where exactly did teaching break down — and how does that map to what students got wrong?**
+
+| Output | Description |
+|--------|-------------|
+| **Structure report** | Lesson flow, concept build-up, and narrative coherence |
+| **Confusion heatmap** | Timestamped moments most likely to cause student confusion |
+| **Exam gap analysis** | Weak concept clusters extracted from student exam papers |
+| **Cross-reference report** | Links teaching moments to exam failure clusters |
+| **Video clip evidence** | Timestamped clips of the problematic teaching moments |
+| **Factual accuracy** | Lecture claims verified against web sources via Bright Data SERP |
+
+## Demo
+
+[![Watch the Veluate demo](https://img.youtube.com/vi/U81mP0EjrYw/maxresdefault.jpg)](https://youtu.be/U81mP0EjrYw)
+
+[Watch on YouTube →](https://youtu.be/U81mP0EjrYw)
+
+## Tech stack
+
+| Layer | Technology | Role |
+|-------|------------|------|
+| **Video** | VideoDB | Index, search, and clip lecture recordings |
+| **Web evidence** | Bright Data SERP API | Verify lecture claims against Google search results *(optional)* |
+| **Orchestration** | LangGraph | Multi-agent pipeline with parallel branches |
+| **LLM** | LangChain + Anthropic / Kimi / OpenAI | Agent reasoning and structured outputs |
+| **Backend** | FastAPI | Async job API |
+| **Database** | SQLite | Job metadata and agent results |
+| **Frontend** | Next.js + Tailwind CSS + shadcn | Evaluation dashboard |
+| **Deploy** | Vercel + Railway | Frontend / backend hosting |
 
 ## Architecture
 
@@ -17,18 +63,21 @@ flowchart TB
     S[Structure]
     C[Clarity]
     E[Exam]
+    F[Fact-check]
     X[Cross-reference]
   end
 
   subgraph output [Output]
     Report[Evidence-based feedback report]
     Clips[Timestamped video clips]
+    Facts[Factual accuracy report]
   end
 
   Video --> T
   T --> S
   T --> C
   T --> E
+  T --> F
   S --> X
   C --> X
   E --> X
@@ -38,6 +87,7 @@ flowchart TB
   Exams --> E
   X --> Report
   X --> Clips
+  F --> Facts
 ```
 
 ## Quick start
